@@ -1,0 +1,22 @@
+*
+!.gitignore
+
+!agents/
+!agents/**
+// Subagents 扩展。为非只读子代理放行所有工具
+
+!extensions/
+!extensions/**
+
+!prompts/
+!prompts/**
+
+!skills/
+!skills/anti-ai-vibes/
+!skills/anti-ai-vibes/**
+!skills/markitdown/
+!skills/markitdown/**
+!skills/md2pdf/
+!skills/md2pdf/**
+
+!AGENTS.md

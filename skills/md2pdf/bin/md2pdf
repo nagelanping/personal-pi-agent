@@ -1,0 +1,134 @@
+#!/usr/bin/env bash
+# md2pdf —— Markdown 转 PDF：pandoc + chromium(KaTeX) 或 pandoc + typst
+set -euo pipefail
+
+# 资源查找：$MD2PDF_HOME → 脚本同级/上一级 → ~/.config/md2pdf
+SELF_DIR=$(cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")" && pwd)
+for d in "${MD2PDF_HOME:-}" "$SELF_DIR" "$SELF_DIR/.." "$HOME/.config/md2pdf"; do
+  if [ -n "$d" ] && [ -f "$d/style.css" ]; then ASSET_DIR=$(cd "$d" && pwd); break; fi
+done
+[ -n "${ASSET_DIR:-}" ] || { echo "找不到 style.css（设置 MD2PDF_HOME）" >&2; exit 1; }
+CSS="$ASSET_DIR/style.css"
+TYPST_HDR="$ASSET_DIR/typst-header.typ"
+# 公式后端：--katex-dir > 系统 KaTeX 包 > 系统 MathJax > MathML
+MATHJAX_JS=/usr/share/mathjax/tex-chtml.js
+FONT="Noto Serif SC"
+CODE_FONT="Hack"
+
+engine=chromium
+out=""
+outdir=""
+katex_dir=""
+page_numbers=0
+files=()
+
+usage() {
+  cat <<'EOF'
+用法: md2pdf [-e chromium|typst] [-o 输出.pdf | --outdir 目录] [--page-numbers] 文件.md ...
+
+  -e, --engine      chromium（默认，样式可控）或 typst（排版轻量，自带页码）
+  -o, --output      输出路径，只对单个输入有效
+      --outdir      输出目录，批量时把每个 PDF 写到该目录（不存在则创建）
+      --katex-dir   DIR 指定 KaTeX 目录（含 katex.min.js），默认用 pacman 的 /usr/lib/node_modules/katex/dist
+      --page-numbers 给 chromium 结果叠加居中页号（需要 uv，首次会拉取 pypdf/reportlab）
+  -h, --help        显示本帮助
+EOF
+}
+
+while [ $# -gt 0 ]; do
+  case "$1" in
+    -e|--engine) engine="${2:?缺少引擎名}"; shift 2 ;;
+    -o|--output) out="${2:?缺少输出路径}"; shift 2 ;;
+    --outdir) outdir="${2:?缺少目录}"; shift 2 ;;
+    --katex-dir) katex_dir="${2:?缺少目录}"; shift 2 ;;
+    --page-numbers) page_numbers=1; shift ;;
+    -h|--help) usage; exit 0 ;;
+    -*) echo "未知选项: $1" >&2; usage >&2; exit 2 ;;
+    *) files+=("$1"); shift ;;
+  esac
+done
+
+[ ${#files[@]} -gt 0 ] || { usage >&2; exit 2; }
+command -v pandoc >/dev/null || { echo "缺少 pandoc：paru -S pandoc-bin" >&2; exit 1; }
+case "$engine" in chromium|typst) ;; *) echo "引擎只能是 chromium 或 typst" >&2; exit 2 ;; esac
+if [ "$engine" = typst ]; then
+  command -v typst >/dev/null || { echo "缺少 typst：paru -S typst" >&2; exit 1; }
+else
+  command -v chromium >/dev/null || { echo "缺少 chromium：paru -S chromium" >&2; exit 1; }
+fi
+if [ -n "$out" ]; then
+  [ ${#files[@]} -le 1 ] || { echo "-o 只用于单个输入文件" >&2; exit 2; }
+  [ -z "$outdir" ] || { echo "-o 与 --outdir 不能同时使用" >&2; exit 2; }
+fi
+if [ -n "$outdir" ]; then mkdir -p "$outdir"; fi
+if [ -n "$out" ]; then mkdir -p "$(dirname "$out")"; fi
+
+# 公式后端：--katex-dir > 系统 KaTeX 包 > 系统 MathJax > MathML
+KATEX_URL=""
+if [ "$engine" = chromium ]; then
+  if [ -n "$katex_dir" ]; then
+    [ -f "$katex_dir/katex.min.js" ] || { echo "$katex_dir 下没有 katex.min.js" >&2; exit 1; }
+    KATEX_URL="file://$(cd "$katex_dir" && pwd)/"
+  elif [ -f /usr/lib/node_modules/katex/dist/katex.min.js ]; then
+    KATEX_URL="file:///usr/lib/node_modules/katex/dist/"
+  fi
+fi
+
+tmp=$(mktemp -d)
+trap 'rm -rf "$tmp"' EXIT
+
+to_chromium() {
+  local md=$1 pdf=$2
+  local dir title_args=() title math_arg=() budget=5000
+  dir=$(cd "$(dirname "$md")" && pwd)
+  title=$(awk 'NR==1&&/^---/{f=1;next} f&&/^---/{exit} f&&/^title:/{sub(/^title:[[:space:]]*/,"");gsub(/^["\x27]|["\x27]$/,"");print;exit}' "$md")
+  if [ -n "$title" ]; then title_args=(--metadata title="$title"); fi
+  if [ -n "$KATEX_URL" ]; then
+    math_arg=(--math-method="katex:$KATEX_URL")
+  elif [ -f "$MATHJAX_JS" ]; then
+    # MathJax 异步渲染，需要更长等待
+    math_arg=(--math-method="mathjax:file://$MATHJAX_JS"); budget=8000
+  else
+    math_arg=(--math-method=mathml)  # shortcut: 最后回退，版式略差
+  fi
+  pandoc -f markdown-smart "$md" -s -t html5 -o "$tmp/doc.html" \
+    "${math_arg[@]}" "${title_args[@]}" \
+    --syntax-highlighting=pygments \
+    --css "$CSS" \
+    --embed-resources \
+    --resource-path="$dir:." \
+    -V lang=zh-CN --quiet
+  chromium --headless --disable-gpu --virtual-time-budget=$budget \
+    --no-pdf-header-footer --print-to-pdf="$pdf" "$tmp/doc.html" 2>/dev/null
+}
+
+to_typst() {
+  local md=$1 pdf=$2 dir
+  dir=$(cd "$(dirname "$md")" && pwd)
+  pandoc -f markdown-smart "$md" -o "$pdf" --pdf-engine=typst --resource-path="$dir:." \
+    -V mainfont="$FONT" -V codefont="$CODE_FONT" \
+    -V fontsize=10.5pt -V linestretch=1.3 -V papersize=a4 \
+    -M lang=zh-CN -H "$TYPST_HDR" --quiet
+}
+
+add_page_numbers() {
+  command -v uv >/dev/null || { echo "缺少 uv，无法叠加页码（pacman -S uv）" >&2; exit 1; }
+  uv run --quiet --with pypdf --with reportlab \
+    python "$ASSET_DIR/bin/add_page_numbers.py" "$1" "$tmp/numbered.pdf"
+  mv "$tmp/numbered.pdf" "$1"
+}
+
+for md in "${files[@]}"; do
+  [ -f "$md" ] || { echo "找不到文件: $md" >&2; exit 1; }
+  name=$(basename "${md%.*}")
+  if [ -n "$out" ]; then pdf=$out
+  elif [ -n "$outdir" ]; then pdf="$outdir/$name.pdf"
+  else pdf="${md%.*}.pdf"; fi
+  case "$engine" in
+    chromium) to_chromium "$md" "$pdf" ;;
+    typst) to_typst "$md" "$pdf" ;;
+  esac
+  # typst 自带页码，无需叠加
+  if [ "$page_numbers" -eq 1 ] && [ "$engine" = chromium ]; then add_page_numbers "$pdf"; fi
+  echo "$pdf"
+done
