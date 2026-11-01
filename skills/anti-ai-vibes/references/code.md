@@ -12,7 +12,8 @@ Apply the always-on rules in `SKILL.md` first. Read this file completely when th
 
 ### Protected content
 
-Do not change runtime behavior merely to improve style. Do not weaken validation, error handling, type safety, security, accessibility, compatibility, or data-loss protection. Keep public names stable unless renaming is requested.
+Do not change runtime behavior merely to improve style.
+Do not weaken validation, error handling, type safety, security, accessibility, compatibility, or data-loss protection. Keep public names stable unless renaming is requested.
 
 ### Domain workflow
 
@@ -20,14 +21,12 @@ Repository conventions and formatters take priority.
 
 #### Draft mode
 
-1. Read the surrounding code before writing. Reuse its naming, error, logging, typing, and test patterns.
-2. Prefer the standard library, native platform feature, or existing project helper. Do not add an abstraction, dependency, option, or layer for a hypothetical future use.
-3. Name values for their domain role and functions for their effect or result. Avoid `data`, `thing`, `helper`, `manager`, `processData`, and similar placeholders when a specific name is available.
-4. Make ownership, side effects, and failure behavior visible. Do not swallow errors or hide uncertainty with unsafe casts and assertions.
-5. Comment why a constraint or non-obvious decision exists. Do not narrate the next line or leave commented-out code.
-6. Use docstrings for public contracts and non-obvious behavior, not for paraphrasing a signature.
-7. Write diagnostics that state the failed operation and useful context without exposing secrets. Avoid conversational filler and blame.
-8. Keep the change scoped to the requested behavior. Do not bundle unrelated cleanup.
+Read the surrounding code before writing and reuse its naming, error, logging, typing, and test patterns.
+Prefer the standard library, a native platform feature, or an existing project helper; do not add an abstraction, dependency, option, or layer for a hypothetical future use. Keep the change scoped to the requested behavior without bundling unrelated cleanup.
+
+Name values for their domain role and functions for their effect or result, avoiding placeholders such as `data`, `thing`, `helper`, `manager`, and `processData` when a specific name is available. Make ownership, side effects, and failure behavior visible, and do not swallow errors or hide uncertainty with unsafe casts and assertions.
+Comment why a constraint or non-obvious decision exists rather than narrating the next line, and never leave commented-out code. Use docstrings for public contracts and non-obvious behavior, not for paraphrasing a signature.
+Write diagnostics that state the failed operation and useful context without exposing secrets, avoiding conversational filler and blame.
 
 #### Revision mode
 
@@ -60,9 +59,7 @@ Repository conventions and formatters take priority.
 
 ### Upstream Clean Code Guidance
 
-Write code the next reader can change without guessing. Make behavior, ownership, and failure modes visible. Apply this to every file you write or edit.
-
-A trigger fired. Fix the violation, then retry:
+Write code the next reader can change without guessing. Make behavior, ownership, and failure modes visible. Apply these rules to every file you write or edit:
 
 #### Type safety
 
@@ -76,27 +73,24 @@ A trigger fired. Fix the violation, then retry:
 
 #### Errors
 
-- Never swallow an error. An empty catch block, a catch that holds only comments, or an empty `.catch()` handler hides a failure. Every failure needs a decision: handle it, wrap it with context, re-raise it, or return a typed failure. If ignoring a failure is deliberate, log it, say why in a comment, and keep the reason observable.
-- Never use a bare `except:`. Name the exceptions you expect. Do not follow an except clause with `pass` or `...`.
-- Catch the specific exception the call can raise. A bare `catch {}`, `except Exception`, `recover()`, or `rescue Exception` swallows bugs and keeps the program running on broken state.
-- A catch that only rethrows (`catch (e) { throw e; }`) adds nothing. Add context (`throw new WrappedError(e)`) or handle the error.
+Never swallow an error. An empty catch block, a catch that holds only comments, or an empty `.catch()` handler hides a failure.
+Every failure needs a decision: handle it, wrap it with context, re-raise it, or return a typed failure. If ignoring a failure is deliberate, log it, say why in a comment, and keep the reason observable.
+
+Catch the specific exception the call can raise. Never use a bare `except:` or follow an except clause with `pass` or `...`; name the exceptions you expect.
+A bare `catch {}`, `except Exception`, `recover()`, or `rescue Exception` swallows bugs and keeps the program running on broken state. A catch that only rethrows (`catch (e) { throw e; }`) adds nothing; add context (`throw new WrappedError(e)`) or handle the error.
 
 #### Names
 
-- Give every name a purpose in the local domain. Prefer `resolveInvoiceRecipient` over `handleData`, `remainingRetryBudget` over `count`, `timeoutMs` over `t`.
-- Rename single-letter names. Conventional loop indices (`i`, `j`, `k`), coordinates (`x`, `y`), and event params (`e`) may stay.
-- Replace generic names (`data`, `item`, `tmp`, `helper`, `manager`, `util`) with domain names.
-- Name booleans as predicates (`isSessionExpired`). Name functions for their effect or returned result.
-- One concept, one term. Use the same word for the same idea everywhere.
+Give every name a purpose in the local domain, using one term per concept across the codebase. Prefer `resolveInvoiceRecipient` over `handleData`, `remainingRetryBudget` over `count`, and `timeoutMs` over `t`.
+Replace generic names (`data`, `item`, `tmp`, `helper`, `manager`, `util`) with domain names, and rename single-letter names except conventional loop indices (`i`, `j`, `k`), coordinates (`x`, `y`), and event parameters (`e`). Name booleans as predicates (`isSessionExpired`) and functions for their effect or returned result.
 
 #### Magic numbers
 
-- Extract bare literals into named constants. The name must say why the value exists: `MAX_RETRIES`, `FIVE_SECONDS_MS`.
-- `0` and `1` in boundary checks are fine. HTTP and status codes are fine when named.
+Extract bare literals into named constants whose names explain why the value exists, such as `MAX_RETRIES` or `FIVE_SECONDS_MS`. Boundary checks using `0` and `1` are fine, as are HTTP and status codes when named.
 
 #### Dead code
 
-- Delete statements that follow a `return`, `throw`, or `raise` — they never run.
+- Delete statements that follow a `return`, `throw`, or `raise`, because they never run.
 - Delete commented-out code. Version control keeps history; a comment explains why, not what was removed.
 - Remove `if (true)` scaffolding and `if (false)` branches.
 - Delete duplicate object keys; the first entry is shadowed.
@@ -111,7 +105,7 @@ A trigger fired. Fix the violation, then retry:
 
 #### Comments
 
-- Delete comments that restate the code. Say why, never what.
+- Delete comments that restate the code. Explain why a decision or constraint exists rather than what the code does.
 - Read each comment against the code below it. If the comment is stale or wrong, fix the comment or fix the code.
 - Remove TODO, FIXME, HACK, and XXX markers. Do the work now, or move the note to the issue tracker. A finished change carries no markers.
 - Remove leftover debug calls: console.log, console.debug, debugger, breakpoint(), todo!().
@@ -120,9 +114,9 @@ A trigger fired. Fix the violation, then retry:
 
 #### What triggers cannot see
 
-Check these yourself on the lines you touch: long functions, deep nesting, duplication, unclear data flow, hidden side effects. Keep units focused on one job. Functions with many parameters: bundle related arguments into one options object. Make errors useful: keep the context, hide secrets, and let the caller decide what happens next. Keep the edit minimal. Do not fold unrelated renames or cleanups into the same change.
-
-If a trigger fires, fix it and retry.
+Check these yourself on the lines you touch: long functions, deep nesting, duplication, unclear data flow, and hidden side effects.
+Keep each unit focused on one job. When a function takes many parameters, bundle related arguments into one options object. Make errors useful by keeping context, hiding secrets, and letting the caller decide what happens next.
+Keep the edit minimal and do not fold unrelated renames or cleanups into the same change. Fix any violation before finishing.
 
 ---
 

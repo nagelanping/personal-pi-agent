@@ -1,12 +1,14 @@
 ## Academic Writing and Revision Prompt
 
-Read this file completely for papers, theses, abstracts, literature reviews, research reports, and reviewer responses. Apply the concrete vocabulary replacements, discipline examples, hedging guidance, paragraph example, tense table, pattern limits, and revision methods below. Do not reduce them to generic advice such as “be concise” or “write naturally.” Apply the always-on language screen in `SKILL.md` first.
+Apply the always-on language screen in `SKILL.md` first. Read this file completely for papers, theses, abstracts, literature reviews, research reports, and reviewer responses.
+Apply the vocabulary replacements, discipline examples, hedging guidance, paragraph structure, tense table, pattern limits, and revision methods below rather than reducing them to generic advice such as "be concise" or "write naturally."
+For Chinese academic text, also apply `references/chinese.md`.
 
 ### Execution order
 
 1. Freeze protected content before drafting from supplied material or revising text.
-2. Apply the complete **Academic Writing Style Guide**.
-3. Apply the complete **Writing Quality Check** during self-review.
+2. Apply the complete Academic Writing Style Guide.
+3. Apply the complete Writing Quality Check during self-review.
 4. Compare the result with the source and restore any factual or epistemic drift.
 5. Return the revised text directly unless the user asks for a change log.
 
@@ -21,41 +23,32 @@ Preserve:
 - qualifiers such as `may`, `suggests`, `in this sample`, `preliminary`, `correlational`, and `after adjustment`;
 - limitations, uncertainty, null results, and alternative interpretations.
 
-Do not fabricate evidence or citations. Do not convert association into causation. Do not rewrite a null result as equivalence unless equivalence was tested. Strengthen syntax without strengthening the scientific claim.
+Do not fabricate evidence or citations. Do not convert association into causation, and do not rewrite a null result as equivalence unless equivalence was tested.
+Strengthen syntax without strengthening the scientific claim.
 
-The two upstream guides below retain their original wording, vocabulary tables, thresholds, and examples. Only heading levels are nested under this document structure.
+The two upstream guides below retain their vocabulary tables, thresholds, and examples, with prose edited for directness and headings nested under this document structure.
 
 ---
 
 ### Academic Writing Style Guide
 
-Used by `draft_writer_agent` and `peer_reviewer_agent`.
-
 #### Core Principles
 
 ##### 1. Precision
 
-- Use the most specific term available
-- Define technical terms on first use
-- Avoid ambiguous pronouns ("this," "it") without clear antecedents
+Use the most specific term available, define technical terms on first use, and avoid ambiguous pronouns ("this," "it") without clear antecedents.
 
 ##### 2. Conciseness
 
-- Eliminate filler words and redundant phrases
-- One idea per sentence (or clearly connected ideas)
-- Prefer short sentences for complex ideas
+Eliminate filler words and redundant phrases. Give each sentence one idea or clearly connected ideas, and prefer short sentences for complex ideas.
 
 ##### 3. Objectivity
 
-- Base claims on evidence, not opinion
-- Use hedging for uncertain claims
-- Acknowledge limitations and alternative interpretations
+Base claims on evidence rather than opinion. Use hedging for uncertain claims, and acknowledge limitations and alternative interpretations.
 
 ##### 4. Formality
 
-- Use full forms ("do not" over "don't")
-- Use formal academic vocabulary; reserve colloquialisms and slang for informal writing
-- Use third person unless discipline conventions allow first person
+Use full forms ("do not" over "don't") and formal academic vocabulary, reserving colloquialisms and slang for informal writing. Use third person unless discipline conventions allow first person.
 
 #### Register Adjustment by Discipline
 
@@ -125,18 +118,15 @@ Example: "Patients receiving the intervention showed a 40% reduction in readmiss
 
 ##### When to Hedge
 
-- Results that need replication
-- Causal claims from correlational data
-- Generalizations from limited samples
-- Interpretations with alternative explanations
+Hedge results that need replication, causal claims drawn from correlational data, generalizations from limited samples, and interpretations with alternative explanations.
 
 ##### When NOT to Hedge
 
-- Reporting factual data: "The response rate was 78%." (not "appeared to be")
-- Describing methodology: "We used thematic analysis." (not "we attempted to use")
-- Well-established facts: "Earth orbits the Sun." (not "may orbit")
+Do not hedge when reporting factual data ("The response rate was 78%," not "appeared to be"), describing methodology ("We used thematic analysis," not "we attempted to use"), or stating well-established facts ("Earth orbits the Sun," not "may orbit").
 
 #### Transition Words and Phrases
+
+Choose transitions according to the actual logical relation between sentences, and avoid overusing them when sentence order already makes the relation clear (see Mechanical transitions in SKILL.md).
 
 ##### Addition
 
@@ -160,7 +150,7 @@ first, second, third, subsequently, finally, meanwhile
 
 ##### Summary
 
-in summary, to conclude, overall, taken together, in short
+overall, taken together (when synthesizing multiple findings). Avoid canned closers such as `in summary`, `in conclusion`, `to conclude`, and `in short` unless they express a real logical relation (see Empty framing and AI-tell phrases in SKILL.md).
 
 ##### Concession
 
@@ -168,16 +158,18 @@ although, despite, while, granted that, notwithstanding
 
 #### Paragraph Construction
 
-##### Standard Academic Paragraph (TEEL)
+##### Analytical Paragraph (TEEL)
 
-1. **T**opic sentence — states the paragraph's main point
-2. **E**vidence — data, citations, examples that support the point
-3. **E**xplanation — interpret the evidence, connect to argument
-4. **L**ink — connect to the next paragraph or back to thesis
+Use for analytical or literature-review paragraphs when a point needs evidence and interpretation; do not force every paragraph into this pattern.
+
+1. Topic sentence (T): states the paragraph's main point
+2. Evidence (E): data, citations, and examples that support the point
+3. Explanation (E): interprets the evidence and connects it to the argument
+4. Link (L, optional): connects the implication to the argument or next point without announcing section structure
 
 ##### Example
 
-> **[T]** AI-assisted quality assurance has shown promise in improving evaluation consistency across institutions. **[E]** Smith (2024) found that institutions using AI tools reported a 23% reduction in inter-rater variance, while Chen and Wang (2023) documented improved agreement on scoring rubrics (κ = 0.82 vs. 0.64). **[E]** These findings suggest that algorithmic assistance can mitigate the subjective biases inherent in human evaluation, particularly when assessors have varying levels of experience. **[L]** However, the reliance on AI tools also raises concerns about the loss of contextual judgment, which the following section addresses.
+> [T] AI-assisted quality assurance has shown promise in improving evaluation consistency across institutions. [E] Smith (2024) found that institutions using AI tools reported a 23% reduction in inter-rater variance, while Chen and Wang (2023) documented improved agreement on scoring rubrics (κ = 0.82 vs. 0.64). [E] These findings suggest that algorithmic assistance can mitigate the subjective biases inherent in human evaluation, particularly when assessors have varying levels of experience. [L] However, reliance on AI tools also raises concerns about the loss of contextual judgment in atypical cases.
 
 #### Common Style Errors
 
@@ -189,7 +181,7 @@ although, despite, while, granted that, notwithstanding
 | due to the fact that         | because            |
 | a large number of            | many               |
 | at the present time          | currently / now    |
-| it is important to note that | notably            |
+| it is important to note that | delete             |
 | in the event that            | if                 |
 | has the ability to           | can                |
 | with regard to               | regarding / about  |
@@ -217,65 +209,36 @@ although, despite, while, granted that, notwithstanding
 | Discussion (interpreting)              | Present        | "These findings suggest..."                                |
 | Conclusion (implications)              | Present/Future | "This has implications for... / Future research should..." |
 
-#### Chinese Academic Writing (zh-TW) Conventions
-
-##### Register
-
-- Use written/formal language; avoid colloquial expressions
-- Prefer active voice (Chinese rarely uses passive)
-- Mainly short sentences; avoid overly long subordinate clauses
-- Use "this study" (ben yan jiu) rather than "we" (wo men)
-
-##### Common Academic Expressions
-
-| English                     | Romanized Chinese                    |
-| --------------------------- | ------------------------------------ |
-| This study aims to          | Ben Yan Jiu Zhi Zai                  |
-| The findings indicate       | Yan Jiu Jie Guo Xian Shi             |
-| It is worth noting          | Zhi De Zhu Yi De Shi                 |
-| In conclusion               | Zong Shang Suo Shu                   |
-| Based on the above analysis | Gen Ju Shang Shu Fen Xi              |
-| Further research is needed  | Wei Lai Yan Jiu Ke Jin Yi Bu Tan Tao |
-
-##### Avoiding Translationese
-
-- Incorrect: "was found to be" (bei fa xian shi) → Correct: "Results show" (jie guo xian shi)
-- Incorrect: "This is because" (zhe shi yin wei) → Correct: "The reason lies in" (yuan yin zai yu)
-- Incorrect: "In the aspect of..." (zai...fang mian) → Correct: State directly
-- Incorrect: "It is worth being pointed out that" (zhi de bei zhi chu de shi) → Correct: "It is worth noting that" (zhi de zhu yi de shi)
-
 ---
 
 ### Writing Quality Check
 
 #### Purpose
 
-A set of writing quality rules extracted from common patterns in AI-generated text. These are **good writing rules** that apply regardless of whether the text was AI-generated or human-written. The goal is better prose, not detection evasion.
+These writing quality rules address common patterns in AI-generated text and apply equally to human-written drafts. This checklist improves clarity and precision; it does not attempt to evade AI detectors.
 
-> **Design boundary**: This checklist improves writing quality. It is NOT a humanizer. We do not aim to fool AI detectors. We aim to produce clear, precise, varied academic prose.
-
-Reference this checklist during the self-review step of drafting (draft_writer_agent Step 2.7, report_compiler_agent final check).
+Use this checklist when reviewing a draft and again in the final check.
 
 ---
 
 #### A. High-Frequency Term Warnings
 
-The following terms appear disproportionately in AI-generated text. They are not banned — but when you encounter one, ask: **"Is this really the most precise word here, or am I defaulting to it?"**
+The following terms appear disproportionately in AI-generated text. They are not banned. When one appears, check whether it is the most precise word available rather than a default choice.
 
 ##### Flagged Terms
 
 | Term           | Why it's flagged                       | Better alternatives (context-dependent)                                                       |
 | -------------- | -------------------------------------- | --------------------------------------------------------------------------------------------- |
 | delve          | Overused as "explore" substitute       | examine, investigate, analyze, explore                                                        |
-| tapestry       | Cliché metaphor for complexity        | network, interplay, system, landscape                                                         |
+| tapestry       | Cliché metaphor for complexity        | network, interplay, system, structure                                                         |
 | landscape      | Vague when not literal                 | field, domain, context, state of                                                              |
-| pivotal        | Inflation of importance                | important, significant, central, key                                                          |
+| pivotal        | Inflation of importance                | important, central, key, main                                                                 |
 | crucial        | Same as above                          | essential, necessary, critical, vital                                                         |
 | foster         | Vague verb                             | promote, develop, cultivate, encourage                                                        |
 | showcase       | Non-academic register                  | demonstrate, illustrate, present, reveal                                                      |
 | testament      | Cliché                                | evidence, indicator, demonstration                                                            |
 | navigate       | Vague when not literal                 | manage, address, handle, negotiate                                                            |
-| leverage       | Business jargon                        | use, employ, utilize, apply                                                                   |
+| leverage       | Business jargon                        | use, employ, apply                                                                            |
 | realm          | Archaic/poetic                         | domain, field, area, sphere                                                                   |
 | embark         | Overwrought for "begin"                | begin, initiate, undertake, start                                                             |
 | underscore     | Overused emphasis verb                 | emphasize, highlight, stress, reinforce                                                       |
@@ -287,14 +250,14 @@ The following terms appear disproportionately in AI-generated text. They are not
 | cornerstone    | Cliché metaphor                       | foundation, basis, core element, pillar                                                       |
 | paradigm       | Overused outside philosophy of science | framework, model, approach (exception: "paradigm shift" in philosophy of science is standard) |
 | synergy        | Business jargon                        | interaction, cooperation, combined effect                                                     |
-| holistic       | Vague without definition               | comprehensive, integrated, whole-system                                                       |
+| holistic       | Vague without definition               | integrated, whole-system, complete                                                            |
 | streamline     | Non-academic                           | simplify, optimize, improve efficiency                                                        |
-| cutting-edge   | Cliché                                | recent, advanced, state-of-the-art, novel                                                     |
-| groundbreaking | Inflation                              | novel, innovative, pioneering, original                                                       |
+| cutting-edge   | Cliché                                | recent, advanced, current, novel                                                              |
+| groundbreaking | Inflation                              | novel, original, new, first-reported                                                          |
 
 ##### Exception Rule
 
-If a flagged term is **standard terminology in the target discipline**, it is exempt:
+If a flagged term is standard terminology in the target discipline, it is exempt:
 
 - "paradigm shift" in philosophy of science → OK
 - "landscape" in ecology/geography (literal) → OK
@@ -305,30 +268,25 @@ If a flagged term is **standard terminology in the target discipline**, it is ex
 
 #### B. Punctuation Pattern Control
 
-##### Em Dash (—)
+##### Em Dash
 
-- **Limit**: ≤ 3 per paper total, recommend 0-1
-- **Why**: AI text overuses em dashes for parenthetical asides. Academic writing typically uses commas, parentheses, or separate sentences instead
-- **Fix**: Replace with commas, parentheses, or restructure into separate sentences
-- **Exception**: Direct quotes from sources retain their original punctuation
+Use at most 3 em dashes per paper total, with 0 to 1 preferred.
+AI text overuses em dashes for parenthetical asides where academic writing uses commas, parentheses, or separate sentences. Replace them with commas, parentheses, or separate sentences, while retaining original punctuation inside direct quotes from sources.
 
 ##### Semicolons
 
-- **Limit**: ≤ 2 per 1000 words
-- **Why**: AI text chains independent clauses with semicolons where a period would be clearer
-- **Fix**: Use a period and start a new sentence. Reserve semicolons for closely related parallel structures
+Use at most 2 semicolons per 1,000 words.
+AI text chains independent clauses with semicolons where a period is clearer. Use a period and start a new sentence, reserving semicolons for closely related parallel clauses.
 
 ##### Colon-List Sequences
 
-- **Rule**: Avoid 2+ consecutive paragraphs that each open with a colon followed by a list
-- **Why**: Creates a monotonous enumerate-everything pattern
-- **Fix**: Integrate list items into prose, or use a single consolidated list
+Avoid two or more consecutive paragraphs that open with a colon followed by a list. Repeated colon-list openings make a passage read like a mechanical enumeration; integrate the list items into prose or use one consolidated list.
 
 ---
 
 #### C. Throat-Clearing Openers
 
-Delete the following sentence starters. Cut to the point.
+Delete the following sentence starters and begin with the claim or subject.
 
 | Throat-clearing phrase             | What to do                                                                   |
 | ---------------------------------- | ---------------------------------------------------------------------------- |
@@ -347,11 +305,11 @@ Delete the following sentence starters. Cut to the point.
 
 ##### Meta-Commentary to Avoid
 
-Also watch for sentences that describe what the paper is doing instead of doing it:
+Also check for sentences that announce what the paper will do instead of presenting the content:
 
-- "This section will discuss..." → Just discuss it
-- "The following paragraph examines..." → Just examine it
-- "We now turn our attention to..." → Just turn to it
+- "This section will discuss..." → state the discussion directly
+- "The following paragraph examines..." → state the examination directly
+- "We now turn our attention to..." → begin the next topic directly
 
 Exception: Roadmap sentences in the Introduction ("Section 2 reviews the literature; Section 3 describes the methodology") are standard academic practice and should be kept.
 
@@ -361,60 +319,43 @@ Exception: Roadmap sentences in the Introduction ("Section 2 reviews the literat
 
 ##### Rule of Three Compulsion
 
-- **Pattern**: Every argument has exactly 3 sub-points, every list has exactly 3 items
-- **Why**: Real analysis doesn't always decompose into trios. Two strong points beat three padded ones
-- **Fix**: Use as many points as the evidence warrants. 2 is fine. 5 is fine. Don't pad to 3
+Watch for passages where every argument has exactly 3 sub-points and every list has exactly 3 items.
+Analysis rarely divides into three equal parts, and two well-supported points are stronger than three padded ones. Use as many points as the evidence warrants (whether 2, 5, or another count) without padding or cutting to reach 3.
 
 ##### Uniform Paragraph Length
 
-- **Pattern**: All paragraphs are approximately the same length (150-200 words each)
-- **Why**: Natural writing has paragraph length variation. Short paragraphs for emphasis, longer ones for complex arguments
-- **Fix**: Vary paragraph length. A 2-sentence paragraph after a 10-sentence paragraph creates rhythm
+Paragraph length alone is not a defect, and you should not adjust paragraph lengths to manufacture variety.
+Check instead whether uniform paragraph lengths (for example, every paragraph around 150–200 words) signal padding or a forced template across paragraphs. Remove padding and let each paragraph take the length its material requires.
 
 ##### Synonym Cycling
 
-- **Pattern**: Using 3+ different synonyms for the same concept within one paragraph to avoid repetition
-- **Why**: In academic writing, consistent terminology is a virtue. Swapping "students" → "learners" → "participants" → "subjects" within one paragraph confuses rather than impresses
-- **Fix**: Pick one term per concept per section. Repeat it. Technical repetition is clarity, not weakness
+Do not cycle through 3 or more synonyms for one concept within a paragraph merely to avoid repetition.
+Academic writing relies on consistent terminology; switching across "students" → "learners" → "participants" → "subjects" within one paragraph obscures whether the referent has changed. Pick one term per concept per section and repeat it consistently.
 
 ##### Binary Contrast Overuse
 
-- **Pattern**: "Not X. Y." or "It's not about X — it's about Y." used more than twice per paper
-- **Why**: This rhetorical device is effective once. Repeated, it becomes a tic
-- **Limit**: ≤ 2 per paper
+Limit "Not X. Y." or "It's not about X — it's about Y." to at most 2 uses per paper. Repeating this contrast device across a paper turns it into a mannerism; state the supported claim directly instead.
 
 ##### Mirror Structure
 
-- **Pattern**: Every section has the same internal structure (topic sentence → 3 evidence points → synthesis sentence)
-- **Why**: Creates a template-stamped feel. Different sections serve different purposes and should have different internal rhythms
-- **Fix**: Let section structure follow content needs. Methods can be procedural. Discussion can be exploratory
+Avoid giving every section the same internal template (such as topic sentence → 3 evidence points → synthesis sentence).
+Different sections serve different functions: Methods can be procedural and Discussion can be analytical or interpretive. Let section structure follow the content.
 
 ---
 
-#### E. Burstiness (Sentence Length Variation)
+#### E. Sentence Rhythm and Syntactic Repetition
 
 ##### What to Check
 
-Good writing has **natural variation in sentence length**. Short sentences create impact. Longer sentences develop complex ideas. The alternation creates rhythm.
+Sentence length alone is not a trigger; procedural or technical passages often use sentences of similar length. Check instead for consecutive sentences that repeat the same syntactic skeleton (the same clause order, opener, comma pattern, and ending).
 
 ##### Detection Rule
 
-If 5+ consecutive sentences all fall within a narrow word-count range (e.g., all between 20-25 words): **flag for review**.
+If 5 or more consecutive sentences share the same syntactic skeleton, or fall into a narrow word-count range (for example, all between 20 and 25 words) because they repeat a template clause structure, flag the passage for review.
 
 ##### How to Fix
 
-- Insert a short sentence (≤ 10 words) to break the pattern
-- Combine two short sentences into one complex one if the pattern is monotonously short
-- Read the paragraph aloud — if it feels metronomic, vary it
-
-##### Burstiness Targets (by section)
-
-- **Abstract**: Moderate variation (factual, steady pace)
-- **Introduction**: High variation (hook with short sentences, build with long ones)
-- **Literature Review**: Moderate (steady analytical pace, occasional short synthesis)
-- **Methods**: Low variation acceptable (procedural sections naturally have uniform length)
-- **Results**: Moderate (short for key findings, longer for detailed descriptions)
-- **Discussion**: Highest variation (short for emphasis, long for interpretation, very short for conclusions)
+Rewrite only the sentences where repeated syntax makes the passage mechanical, such as by merging two closely dependent clauses or changing clause order to match the logical relation. Do not insert arbitrary short sentences or adjust sentence lengths to hit a variation target.
 
 ---
 
@@ -422,21 +363,16 @@ If 5+ consecutive sentences all fall within a narrow word-count range (e.g., all
 
 ##### During Drafting (Preferred)
 
-Apply rules **while writing each section** in the self-review sub-step (Step 2.7 in draft_writer_agent). This catches issues before they propagate.
+Apply these rules while reviewing each section after drafting it, so issues are caught before they propagate.
 
 ##### During Final Review (Fallback)
 
-If not applied during drafting, run a full-paper sweep before handoff to citation_compliance_agent.
+If the rules were not applied during drafting, check the full paper before submission.
 
 ##### Scoring (Internal, Not Reported to User)
 
-For each rule category, track violations:
-
-- 0 violations: Clean
-- 1-3 violations: Minor — fix in self-review
-- 4+ violations: Pattern issue — review the section's writing approach
-
-Do NOT report scores to the user. Just fix the issues silently during drafting.
+For each rule category, track violations internally: 0 violations is clean; 1–3 violations is minor and should be fixed in self-review; 4+ violations indicates a pattern issue where you should review the section's writing approach.
+Do not report scores to the user; fix the issues silently during drafting.
 
 ### AI-associated literary defaults
 

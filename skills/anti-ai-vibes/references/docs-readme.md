@@ -20,14 +20,11 @@ Match the repository's existing terminology and Markdown conventions.
 
 #### Draft mode
 
-1. Start with what the project or component does. Add intended users and scope only when they affect use.
-2. Put the shortest working path before background material: prerequisites, install, minimal example, expected result.
-3. Use exact commands, paths, configuration keys, defaults, and supported versions. Do not replace missing facts with plausible text.
-4. Organize headings around reader tasks or stable concepts. Avoid generic sections such as `Overview` when a specific heading is clearer.
-5. Explain limits, side effects, destructive steps, required permissions, and recovery near the relevant command.
-6. Keep examples runnable and consistent with the current API. Prefer one representative example over several near-duplicates.
-7. Use tables only for genuine comparison or repeated fields. Use neutral headers such as `Option`, `Default`, `Effect`, `Status`, and `Result`.
-8. State project status factually. Replace claims such as “production-ready,” “powerful,” or “seamless” with tested capabilities and known limits.
+Start with what the project or component does, adding intended users and scope only when they affect use. Put the shortest working path before background material: prerequisites, install, minimal example, and expected result.
+Organize headings around reader tasks or stable concepts, avoiding generic sections such as `Overview` when a specific heading is clearer. Use tables only for genuine comparison or repeated fields, with neutral headers such as `Option`, `Default`, `Effect`, `Status`, and `Result`.
+
+Use exact commands, paths, configuration keys, defaults, and supported versions; do not replace missing facts with plausible text. Keep examples runnable and consistent with the current API, preferring one representative example over several near-duplicates.
+Explain limits, side effects, destructive steps, required permissions, and recovery near the relevant command. State project status factually, replacing claims such as “production-ready,” “powerful,” or “seamless” with tested capabilities and known limits.
 
 #### Revision mode
 
@@ -54,7 +51,7 @@ Avoid:
 
 #### Promotional claims
 
-Default-prohibited unless the text supplies a defined comparison and evidence:
+Prohibited by default unless the text supplies a defined comparison and evidence:
 
 `state-of-the-art`, `cutting-edge`, `game-changing`, `groundbreaking`, `revolutionary`, `transformative`, `innovative`, `pioneering`, `world-class`, `best-in-class`, `industry-leading`, `market-leading`, `enterprise-grade`, `production-ready`, `mission-critical`, `future-proof`, `unparalleled`, `unmatched`, `unrivaled`, `powerful`, `seamless`, `effortless`, `frictionless`, `bulletproof`, `rock-solid`, `battle-tested`, `comprehensive`, `robust`, `significant impact`, `dramatically`, `exponential`, `redefining`, `revolutionizing`, `unleashing`, `unlocking`, `empowering`
 
@@ -78,13 +75,9 @@ Replace value judgments with the tested property and its bound.
 
 ### Upstream Simple English Guidance
 
-Write in Simplified Technical English (STE-100). A human reads every message.
-
-Use the shortest word that means the same thing. Use short sentences. Put one idea in each sentence. Do not use long words when a short word works. Do not use jargon. Do not use corporate or AI phrases. Do not make things confusing. Say exactly what you mean, plainly. When in doubt, choose the simpler word.
-
-Lead with the conclusion. Give the context needed to understand it. Use the active voice. Do not use metaphors or figures of speech.
-
-If a trigger fires, rephrase with the simplest word that means the same thing.
+Write in Simplified Technical English (STE-100) for a human reader. Use the shortest accurate word, short sentences, and one idea per sentence.
+Avoid unexplained jargon, corporate phrasing, AI-tell phrases, and figurative language. Lead with the conclusion, give the context needed to understand it, and use the active voice where natural.
+Replace any prohibited term with the simplest word that carries the same meaning.
 
 ---
 

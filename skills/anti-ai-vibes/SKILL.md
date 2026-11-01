@@ -16,7 +16,7 @@ description: "Human-facing prose and code-style correction before drafting or du
 
 ### Execution
 
-1. Determine whether the task is **Draft mode** or **Revision mode**.
+1. Determine whether the task is Draft mode or Revision mode.
 2. Apply every rule in this file.
 3. Read each matching domain prompt under `references/`; combine prompts when one artifact spans domains.
 4. If the user supplies a style guide, template, venue rule, repository convention, or examples of their own writing, follow them before the domain defaults.
@@ -24,15 +24,11 @@ description: "Human-facing prose and code-style correction before drafting or du
 
 ### Draft mode
 
-Write for the intended reader and task, not for an abstract idea of “professional tone.”
+Write for the intended reader and task rather than an abstract idea of professional tone. Lead with the result, claim, action, or question.
+Use the established term for each concept, and keep one term for one concept. Prefer concrete nouns and verbs, replacing vague praise, inflated importance, and corporate language with observable facts.
 
-1. Lead with the result, claim, action, or question.
-2. Use the established term for each concept. Keep one term for one concept.
-3. Prefer concrete nouns and verbs. Replace vague praise, inflated importance, and corporate language with observable facts.
-4. Give each sentence one main job. Split a sentence when its clauses do not depend on each other.
-5. Use headings and lists only when they help scanning. Do not force every argument into three points.
-6. Use neutral labels such as `问题`, `现象`, `影响`, `结果`, `状态`, and `实验设置`.
-7. Vary sentence and paragraph length only as the content requires. Do not impose a repeated template.
+Give each sentence one main job, and split a sentence when its clauses do not depend on each other. Vary sentence and paragraph length only as the content requires, without imposing a repeated template.
+Use headings and lists only when they help scanning, without forcing arguments into three points. Use neutral labels such as `问题`, `现象`, `影响`, `结果`, `状态`, and `实验设置`.
 
 ### Revision mode
 
@@ -44,7 +40,7 @@ Write for the intended reader and task, not for an abstract idea of “professio
 
 ### Always-on language screen
 
-Use this screen for all human-facing prose. Treat the entries as **default-prohibited**, not context-free bans. Keep a match only when it is:
+Use this screen for all human-facing prose. These entries are prohibited by default, with four context-dependent exceptions. Keep a match only when it is:
 
 - a standard term in the target discipline (`robust estimator`, `stakeholder theory`);
 - literal rather than figurative (`navigation task`, `ecological landscape`);
@@ -53,7 +49,7 @@ Use this screen for all human-facing prose. Treat the entries as **default-prohi
 
 For every retained match, be able to name the exception. Otherwise delete it or replace it with the fact, mechanism, actor, measurement, or action.
 
-Domain-specific vocabulary lists — academic literary words, promotional claims, corporate jargon, and Chinese research-report metaphors — live in the matching `references/*.md` file and apply when that domain routes.
+Domain-specific vocabulary lists (academic literary words, promotional claims, corporate jargon, and Chinese research-report metaphors) live in the matching `references/*.md` file and apply when that domain routes.
 
 #### Phrase and pattern groups
 
@@ -103,9 +99,9 @@ Flag overuse, especially stacked or preemptive disclaimers that rebut a claim no
 
 These words are not banned. Keep a negation or limit when it carries the source's evidence boundary, corrects a claim the text or reader actually makes, or states a real failure (`未能复现`). Otherwise state the supported result directly.
 
-- Draft mode: state what the evidence shows. Add a limit only where a reader would plausibly over-read the result, and state it once.
-- Revision mode: the source's negations and limits are protected content. Remove only duplicated, stacked, or preemptive disclaimers; never delete or weaken a limit the source actually states.
-- Do not stack two disclaimers on one claim (`不能断言，也不能保证`). Do not swap one entry for another from this list.
+In Draft mode, state what the evidence shows. Add a limit only where a reader would plausibly over-read the result, and state it once.
+In Revision mode, the source's negations and limits are protected content; remove only duplicated, stacked, or preemptive disclaimers, and never delete or weaken a limit the source actually states.
+Do not stack two disclaimers on one claim (`不能断言，也不能保证`), and do not swap one entry for another from this list.
 
 - Weak: `该结果不能证明方法有效，只能说明在本数据集上准确率提高了 3%。` when no one claimed general effectiveness.
 - Direct: `在本数据集上，准确率提高了 3%。`
@@ -138,27 +134,22 @@ Prefer the shorter equivalent when meaning is unchanged:
 
 #### Structural triggers
 
-Revise the pattern, not just one phrase:
+Revise the recurring pattern across the passage, not only one phrase:
 
-- **Forced triads:** repeated sets of exactly three points. Keep only evidence-bearing points; do not pad or cut to reach three.
-- **Mirror paragraphs:** repeated `claim → three examples → summary` blocks. Let methods, results, discussion, and instructions use forms suited to their jobs.
-- **Synonym cycling:** different words for one technical concept. Choose one term and repeat it.
-- **Binary-contrast tic:** repeated `not X but Y`, `不是 X，而是 Y`, or `与其说 X，不如说 Y`. State the supported result.
-- **Meta-commentary:** sentences that announce the next sentence or section. Present the content.
-- **Uniform rhythm:** consecutive sentences with the same syntactic skeleton (same clause order, comma pattern, and ending). Sentence or paragraph length alone is not a trigger. Change only where the pattern is visible; do not manufacture randomness.
-- **Colon-list runs:** several consecutive paragraphs ending their opener with a colon and list. Consolidate or use prose.
-- **Punctuation tics:** repeated em dashes and semicolons used to chain thoughts. Use a period, comma, or parentheses according to syntax. Preserve punctuation inside quotations.
+- Forced triads: repeated sets of exactly three points. Keep only evidence-bearing points; do not pad or cut to reach three.
+- Mirror paragraphs: repeated `claim → three examples → summary` blocks. Let methods, results, discussion, and instructions use forms suited to their jobs.
+- Synonym cycling: different words for one technical concept. Choose one term and repeat it.
+- Binary-contrast tic: repeated `not X but Y`, `不是 X，而是 Y`, or `与其说 X，不如说 Y`. State the supported result.
+- Meta-commentary: sentences that announce the next sentence or section. Present the content.
+- Uniform rhythm: consecutive sentences with the same syntactic skeleton (same clause order, comma pattern, and ending). Sentence or paragraph length alone is not a trigger. Change only where the pattern is visible; do not manufacture randomness.
+- Colon-list runs: several consecutive paragraphs ending their opener with a colon and list. Consolidate or use prose.
+- Punctuation tics: repeated em dashes and semicolons used to chain thoughts. Use a period, comma, or parentheses according to syntax. Preserve punctuation inside quotations.
 
 #### Chinese plain-language screen
 
-中文场景的语域要求：
-
-- 默认使用偏书面的语言组织方式：句子成分完整，关系词齐全，用词是日常通用词，可保留英文专有词。论文、合同、规范、正式公告等专业场景，按需使用正式书面语。
-- 不用无意义的假口语化和比喻；按中文习惯的主谓宾语序表达。
-- 不堆砌修辞和句式，不写大段礼貌用语和廉价关怀。
-- 不刻意重复已出现的内容和修饰性措辞；同一概念的术语照常重复（见 Synonym cycling）。
-- 避免过度的防御性表述（见 Defensive negation and disclaimer boilerplate）。
-- 结尾不机械补充祝福、空泛总结或强行追问。
+中文场景默认使用偏书面的语言组织方式，要求句子成分完整、关系词齐全，使用日常通用词，并可保留英文专有词。论文、合同、规范、正式公告等专业场景，按需使用正式书面语。
+表达时按中文习惯的主谓宾语序组织句子，不用无意义的假口语化和比喻；不堆砌修辞和句式，也不写大段礼貌用语和廉价关怀。
+不刻意重复已出现的内容和修饰性措辞，但同一概念的术语照常重复（见 Synonym cycling）。避免过度的防御性表述（见 Defensive negation and disclaimer boilerplate），结尾也不机械补充祝福、空泛总结或强行追问。
 
 英式中文的修正和中文表达要求见 `references/chinese.md`。
 

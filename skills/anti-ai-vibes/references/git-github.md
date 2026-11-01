@@ -22,17 +22,13 @@ Follow the repository's commit, issue, and PR templates when present.
 
 ##### Draft mode
 
-- Subject: state the change in the repository's established tense and format. Use the component name when it helps retrieval.
-- Body: explain why the change was needed, what behavior changed, and any migration or compatibility effect. Omit the body when the subject is sufficient.
-- Describe the actual diff. Do not claim tests, fixes, performance gains, or compatibility that were not verified.
-- Do not add generated signatures, promotional language, or a file-by-file narration unless required.
+State the change in the subject using the repository's established tense and format, adding the component name when it helps retrieval. In the body, explain why the change was needed, what behavior changed, and any migration or compatibility effect; omit the body when the subject is sufficient.
+Describe the actual diff without claiming tests, fixes, performance gains, or compatibility that were not verified. Do not add generated signatures, promotional language, or a file-by-file narration unless required.
 
 ##### Revision mode
 
-- Compare the message with the staged or supplied diff.
-- Remove vague subjects such as `update code`, `improve system`, and `various fixes`.
-- Preserve issue references and breaking-change markers.
-- Split unrelated claims in the message; do not pretend an unrelated diff is one coherent change.
+Compare the message with the staged or supplied diff, preserving issue references and breaking-change markers.
+Remove vague subjects such as `update code`, `improve system`, and `various fixes`. Split unrelated claims in the message rather than presenting an unrelated diff as one coherent change.
 
 #### Pull requests
 
@@ -50,19 +46,16 @@ Prefer `Tested: <command/result>` over “thoroughly tested.” If not tested, s
 
 ##### Revision mode
 
-- Remove restatements of the title, inflated impact, exhaustive file tours, and boilerplate checklists with no evidence.
-- Keep decisions, trade-offs, known limits, screenshots, benchmarks, migration steps, and reproducible checks.
-- Ensure the title and summary match the final diff, not the initial plan.
+Remove restatements of the title, inflated impact, exhaustive file tours, and boilerplate checklists with no evidence. Keep decisions, trade-offs, known limits, screenshots, benchmarks, migration steps, and reproducible checks.
+Ensure the title and summary match the final diff rather than the initial plan.
 
 #### Issues, reviews, and discussions
 
-- Lead with the observed behavior or requested decision.
-- Separate reproduction, expected result, actual result, environment, and impact when those fields exist.
-- Distinguish confirmed facts from inference. Write `原因未查明。` when investigation has not established a cause.
-- Quote the relevant code or error. Avoid characterizing the author or intent.
-- In review comments, state location, consequence, and a concrete fix or question. Do not pad with praise or use rhetorical questions.
-- In maintainer replies, answer the request directly. State acceptance, rejection, missing information, or next action without canned gratitude.
-- Do not promise timelines or future work without authority.
+Lead with the observed behavior or requested decision. Separate reproduction, expected result, actual result, environment, and impact when those fields exist.
+Distinguish confirmed facts from inference, and write `原因未查明。` when investigation has not established a cause. Quote the relevant code or error rather than characterizing the author or intent.
+
+In review comments, state the location, consequence, and a concrete fix or question without praise padding or rhetorical questions.
+In maintainer replies, answer the request directly, stating acceptance, rejection, missing information, or the next action without canned gratitude. Do not promise timelines or future work without authority.
 
 #### Examples
 
@@ -84,7 +77,7 @@ Direct review comment:
 
 #### Corporate and process jargon
 
-Default-prohibited in commit messages, PRs, issues, and maintainer replies:
+Prohibited by default in commit messages, PRs, issues, and maintainer replies:
 
 `leverage`, `utilize`, `initiate`, `finalize`, `remediate`, `facilitate`, `operationalize`, `institutionalize`, `streamline`, `synergy`, `seamless`, `holistic`, `actionable`, `proactive`, `paradigm`, `bandwidth`, `value-add`, `deliverable`, `workstream`, `touchpoint`, `buy-in`, `circle back`, `touch base`, `drill down`, `deep dive`, `moving forward`, `best practice`, `playbook`, `low-hanging fruit`, `win-win`, `move the needle`, `boil the ocean`, `raise the bar`, `push the envelope`, `hit the ground running`, `think outside the box`
 
@@ -117,10 +110,7 @@ Common replacements:
 
 ### Upstream Voice Guidance
 
-The user reads every message. Use plain words. Short sentences.
-
-Never use the banned words or AI-tell phrases listed in the frontmatter.
-If the trigger matched, rephrase with the simplest word that means the same thing
+Write each message in plain words and short sentences because a human reader will rely on it. Do not use the prohibited words or AI-tell phrases from `SKILL.md` or this file; replace any match with the simplest accurate term.
 
 ---
 
@@ -150,10 +140,3 @@ Direct maintainer reply:
 
 > Please provide the full error and the output of `tool --version`. No maintainer is assigned yet.
 
-Weak review comment:
-
-> Could we perhaps consider a more robust approach here?
-
-Direct review comment:
-
-> This catch block discards the parse error, so callers receive an empty config. Return the error or wrap it with the file path.
