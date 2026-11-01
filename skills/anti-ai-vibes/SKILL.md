@@ -38,7 +38,7 @@ Write for the intended reader and task, not for an abstract idea of “professio
 
 1. Freeze facts and protected wording before editing: numbers, citations, quotations, qualifiers, technical terms, code, links, and explicit user decisions.
 2. Identify the actual defects: vague wording, filler, repetition, unexplained jargon, canned transitions, template symmetry, unsupported confidence, or inconsistent terms.
-3. Rewrite only the defective passages. Keep already clear text.
+3. Rewrite only the defective passages. Keep already clear text. Keep heading levels, section and paragraph order, lists, tables, quotations, and code blocks unless a structural trigger or the user requires a change.
 4. Compare the revision with the source. Restore any changed fact, scope, uncertainty, or attribution.
 5. Return the revised text directly unless the user asks for a change log.
 
@@ -145,7 +145,7 @@ Revise the pattern, not just one phrase:
 - **Synonym cycling:** different words for one technical concept. Choose one term and repeat it.
 - **Binary-contrast tic:** repeated `not X but Y`, `不是 X，而是 Y`, or `与其说 X，不如说 Y`. State the supported result.
 - **Meta-commentary:** sentences that announce the next sentence or section. Present the content.
-- **Uniform rhythm:** consecutive sentences or paragraphs with nearly identical length and syntax. Change only where the argument is obscured; do not manufacture randomness.
+- **Uniform rhythm:** consecutive sentences with the same syntactic skeleton (same clause order, comma pattern, and ending). Sentence or paragraph length alone is not a trigger. Change only where the pattern is visible; do not manufacture randomness.
 - **Colon-list runs:** several consecutive paragraphs ending their opener with a colon and list. Consolidate or use prose.
 - **Punctuation tics:** repeated em dashes and semicolons used to chain thoughts. Use a period, comma, or parentheses according to syntax. Preserve punctuation inside quotations.
 
