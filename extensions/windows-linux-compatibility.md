@@ -45,7 +45,7 @@ YOLO_MODE_SELFTEST=1 node ~/.pi/agent/extensions/yolo.ts
 
 ## 未验证与限制
 
-- 本机没有可用的 WSL/Linux 环境，未在真实 Linux 系统复测。Linux 专用权限测试仍保留，没有将 Windows 通过等同于 Linux 实测通过。
+- 本机没有可用的 WSL/Linux 环境，未在真实 Linux 系统复测。Linux 专用权限测试仍保留。
 - Windows 手动开启目录大小写敏感的情形不在本次补丁路径支持范围内；新文件发布仍需要文件系统支持硬链接。
 - hashline 按路径保存撤销记录。应使用一致的规范路径，避免混用 Windows 8.3 短路径、长路径或其他路径别名查询同一文件的撤销记录。
 - 未调用模型服务，也未验证真实摘要请求、GPT 服务端补丁生成或终端交互视觉效果。

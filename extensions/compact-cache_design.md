@@ -1,16 +1,18 @@
 # compact-cache 设计说明
 
-`compact-cache.ts` 替换 `/compact` 生成摘要的方式：把"停止工作、输出检查点"的指令追加到当前上下文末尾，作为最后一条 user 消息，复用上一次真实请求写入的 KV 前缀缓存。无法命中时退回 pi 原生压缩。切点、落盘、投影重建、TUI 与排队消息全部沿用 pi。
+`compact-cache.ts` 替换 `/compact` 生成摘要的方式：把“停止工作、输出检查点”的指令追加到当前上下文末尾，作为最后一条 user 消息，复用上一次真实请求写入的 KV 前缀缓存。无法命中时退回 pi 原生压缩。切点、落盘、投影重建、TUI 与排队消息全部沿用 pi。
+
+当前会话模型为 `openai-codex` 且 API 为 `openai-codex-responses` 时，本扩展跳过快照采集和压缩接管，保留 `pi-codex-native` 的结果。此例外不限制其他会话使用 Codex 作为 native 摘要模型。
 
 本文记录设计意图、判断依据和实测发现。具体实现以代码为准，这里不重复。实测集中在 deepseek-flash；Anthropic、gpt 中转和本地模型的 append 路径只有历史请求统计，没有专门实测。
 
-旧版文档（含逐行源码引用、分阶段计划、逐轮改动记录）已被移入回收站（`~/.local/share/Trash/files/compact-cache_design.old.md`），需要查原始证据时从那里取。
+旧版文档（含逐行源码引用、分阶段计划、逐轮改动记录）已移入回收站（`~/.local/share/Trash/files/compact-cache_design.old.md`），需要查阅原始证据时可从该处获取。
 
 ---
 
 ## 1. 问题
 
-pi 原生压缩是整套流程里最贵的一次请求。它强制 `cacheRetention: "none"` 并换新 sessionId，输入是被丢弃部分序列化后的纯文本，不命中任何缓存。
+pi 原生压缩强制 `cacheRetention: "none"`，输入是被丢弃部分序列化后的纯文本，无法复用最近完整请求的 KV 前缀。下文的“全价”按未命中估算；DeepSeek 仍可能命中旧文本的块级缓存（见 10.3）。本扩展在 Pi 1.5.0 的 `compact()` 调用中传入当前 sessionId。
 
 按单位 C（整段上下文全价输入的成本）估算：
 
@@ -38,7 +40,7 @@ native 的 0.5C 是估算值。旧文档里 native 输入占上下文的比例�
 
 最初的方案是请求头哈希加自行重建请求，评审后被否决，原因有两层：
 
-- 哈希只能证明"没变"，不能证明重建正确。
+- 哈希仅用于检测请求头变化，不检验重建结果。
 - 重建所需的信息，扩展在钩子里拿不到：
   - 系统提示：forced prompt 在 run 结束时被清除，钩子里的 `getSystemPrompt()` 只剩底稿。
   - 工具描述：会被 loadout 改写，`getAllTools` 看到的是改写前的。
@@ -46,15 +48,16 @@ native 的 0.5C 是估算值。旧文档里 native 输入占上下文的比例�
 
 任何自行重建的方案都会静默偏差，后果是缓存全部失效而不报错。
 
-采用的做法：平时把每次真实请求的完整 payload 存成快照。压缩时自己发请求，在 payload 生成后的回调里把快照的消息序列与新请求逐条比对，完全相等才放行，并把整份 payload 换成快照的，只保留新增的尾部。这一步同时承担门控、构造和最终校验，哈希可以整个删除。
+每次真实请求的完整 payload 均存为快照。压缩时自己发请求，在 payload 生成后的回调里把快照的消息序列与新请求逐条比对，完全相等才放行，并把整份 payload 换成快照的，只保留新增的尾部。这一步同时承担门控、构造和最终校验，哈希可以整个删除。
 
-契约：快照只用于回放，不用于重建。任何"从快照读一个字段再自己拼请求"的写法都是错的。
+快照仅用于回放，不可从中读取单个字段重新拼装请求。
 
 ### 2.3 比对规则的取舍
 
 - 在 payload 层比，不在 AgentMessage 层比，因为 transform 之后的内容才是真正发出去的。
 - 比对时忽略所有 `cache_control`，并将消息 `content` 的字符串与仅含一个纯文本块的数组视为等价；不归一化工具参数，也不忽略文本块的额外字段。验证通过后保留快照原始前缀，只追加新尾部。
 - openai-completions 把 system 放在 `messages[0]`，Anthropic 的 system 是顶层字段。比对时排除开头的 system/developer 消息，回放时用快照里的那条。
+- 校验范围是去掉开头 system/developer 后的消息前缀；顶层 `system`、`instructions`、`tools` 不与新请求比对，回放时沿用快照。因此这里的“完全相等”指上述消息前缀，不是整份新旧 payload。
 - 输出上限（`max_tokens` 等）不属于缓存前缀，永远取新请求。这条来自一个实际故障：pi 的缓存预热请求带 `maxTokens: 1`，openai-responses 适配器会把它抬成 16；如果守卫只认 1，预热请求会被当成快照，之后摘要继承 16 的上限而 `stop=length`。预热在本机从未运行（`models.json` 没声明 `promptCache`，`cost` 全为 0 使预热收益恒为 0），所以问题是读代码时发现的，没有在生产中出现。
 - 显式指定思考档位或会话档位变化时，非结构参数整体取新请求，清除新请求已省略的旧参数，避免关闭思考后残留 `reasoning_effort`。否则沿用快照参数；`messages/input/tools/system/instructions` 始终取快照前缀。
 
@@ -64,7 +67,7 @@ native 的 0.5C 是估算值。旧文档里 native 输入占上下文的比例�
 
 - 压缩有三个入口：manual、threshold、overflow。overflow 时上下文已超窗，append 必然失败，必须走 native。threshold 路径上 `cancel` 之后请求照常发出，可能溢出，所以自动路径从不 cancel。
 - 钩子返回完整 `compaction` 对象即可替代内置生成。
-- `fromHook: true` 的条目不会被 pi 累积 `<read-files>` / `<modified-files>`。因此扩展产出的条目之后，pi 自己的压缩不会继承这份清单，扩展自己从上一条 compaction 的 `details` 合并。这也是 native 路径也由扩展调 `compact()`、而不是交回 pi 的原因之一。
+- `fromHook: true` 的条目不会被 pi 累积 `<read-files>` / `<modified-files>`。因此扩展产出的条目之后，pi 自己的压缩不会继承这份清单，扩展自己从上一条 compaction 的 `details` 合并。这也是 native 路径由扩展调用 `compact()` 的原因之一。
 - 扩展自己通过 `modelRegistry.streamSimple` 发的请求不经过 `before_provider_request` / `before_provider_headers`。`pi-cache-optimizer` 注入的 `prompt_cache_key`、剥掉的 `prompt_cache_retention` 都不会作用于这类请求。快照回放是唯一能让这类请求与会话请求一致的办法。
 - `session_compact` 之后紧接着的 `compaction_end` 会清空聊天容器并从会话条目重建，之前 `notify` 出来的统计行随之消失（实测）。统计信息改放 widget，它不在聊天容器里。
 - 统计信息不写进 summary（会进入上下文，破坏刚重建的前缀），也不用 `pi.sendMessage`（custom content 会进模型上下文）。
@@ -83,8 +86,6 @@ native 的 0.5C 是估算值。旧文档里 native 输入占上下文的比例�
 | 无快照（内存与磁盘都没有） | 无从回放 |
 | 窗口余量 < 32k | 硬约束，`-c` 也不能越过 |
 | 闲置时间 ≥ TTL 门限 | 带 `-c` 时只告警，照常 append |
-
-几个判断：
 
 - `-c` 只覆盖 TTL 这个猜测，不覆盖余量。早先 `-c` 越过 TTL 时也跳过了余量检查，会发出必然超窗、按全价计费的请求，已改为余量先于 TTL 判断。
 - 思考档位不是门控条件。实测 low 与 high 之间切换仍有 99.7% 命中，档位变化只是让请求参数取自新 payload。早先的 `thinking-changed` 门槛会让 `-c` 永久失效，已删除。
@@ -105,7 +106,7 @@ native 的 0.5C 是估算值。旧文档里 native 输入占上下文的比例�
 
 内存里存引用，在 `agent_settled` / `session_shutdown` 时落盘。早先每次请求同步 `JSON.stringify` 约 1 MB payload，会拖慢每一次请求；丢失最后一轮只多一次 native 回落，代价小。
 
-落盘位置 `~/.pi/agent/compact-cache/`，文件名由 `sessionId` 与模型拼成。只存 `{at, model, thinking, payload}`，**不存请求头**，因此内容与会话 jsonl 等价，不含凭据。超过 32M 字符不存，7 天未动的文件在会话启动时清理。
+落盘位置默认为 `~/.pi/agent/compact-cache/`，`PI_CODING_AGENT_DIR` 可覆盖 agent 目录；日志也使用该目录。文件名由 `sessionId` 与模型拼成。只存 `{at, model, thinking, payload}`，**不存请求头**，因此不会把请求头中的鉴权凭据落盘；payload 仍含对话数据。超过 32M 字符不存，7 天未动的文件在会话启动时清理。
 
 落盘的原因是一次实测事故：用户在 33 小时空白后 `/compact -c` 走了 native，因为恢复会话后内存快照为空。落盘后，新进程 resume 立刻 `-c` 实测命中 99.3%。
 
@@ -117,7 +118,7 @@ native 的 0.5C 是估算值。旧文档里 native 输入占上下文的比例�
 
 ### 5.4 加载顺序约束
 
-快照是引用保存的，所以本扩展的 `before_provider_request` 必须排在所有会改写 payload 的扩展之后。`pi-cache-optimizer` 返回副本而不是原地修改，更需要排在它后面。
+快照是引用保存的，所以本扩展的 `before_provider_request` 必须排在所有会改写 payload 的扩展之后。`pi-cache-optimizer` 返回副本而非原地修改，更需要排在它后面。
 
 实际加载顺序（读 `package-manager.resolve()` 确认）：`settings.packages`（项目在前、全局在后）、`settings.extensions` 显式条目、自动扫描 `~/.pi/agent/extensions/`、builtin。本扩展放在 `extensions/` 目录下，排在所有 packages 之后，满足约束。
 
@@ -131,7 +132,7 @@ append 失败（任何原因）和 `-nc` 都进入 native。native 不再交回 
 
 ### 为什么不保留 pi 内置路径
 
-读 `agent-session.js` 的 `_runDefaultCompaction`：它调的和扩展是同一个 `compact()`，同样的序列化、同样的 system prompt、同样的失败判据（出错、`length`）。它比扩展多出来的只有三样：虚拟模型路由、pi 的重试设置、取不到鉴权时仍发请求。
+pi 内置路径与扩展调用的是同一个 `compact()`，使用相同的序列化、system prompt 和失败判据（出错、`length`）。扩展没有沿用内置路径的虚拟模型路由和 pi 重试设置；Pi 1.5.0 适配后，鉴权由 registry 在请求时解析，不再作为两条路径的差别。
 
 按失败原因看，内置路径解决不了扩展解决不了的问题：
 
@@ -167,6 +168,12 @@ append 失败（任何原因）和 `-nc` 都进入 native。native 不再交回 
 - 截断后摘要无法引用被截掉的工具输出细节，质量下降且不报错，属于第 11 节第 3 条的同类风险。`|trimmed` 标记是唯一提示。
 - 原先在发请求前用 `tokensBefore + 32k > 摘要模型窗口` 提前放弃，已删除：native 实际发送的是序列化后的被丢弃部分，远小于 `tokensBefore`，那个检查对小窗口模型过于保守。窗口放不下现在直接表现为请求报错，进入第 2 次尝试。
 
+### Pi 1.5.0 的调用与鉴权
+
+`nativeCompact` 已删除预先调用 `getApiKeyAndHeaders` 的步骤。调用 `compact()` 时，`apiKey`、`headers`、`env` 均传 `undefined`，通过 `streamFn` 把模型、上下文和选项转交 `ctx.modelRegistry.streamSimple`，由 registry 在请求时解析鉴权。预先取出 OAuth token 再作为显式 `apiKey` 传入会改变鉴权模式，不能用这种方式转交凭据。`streamFn` 和思考档位的类型从当前 `Pi.compact` 签名派生，并传入当前 sessionId。
+
+这与 append 快照路径不同：append 直接调用 registry，在 `onPayload` 回放快照，并在内存快照有请求头时通过 `transformHeaders` 回放请求头；native fallback 使用 `compact()` 生成的摘要请求，不回放快照 payload 或请求头。两条路径均保留返回的 `usage`；native 的 split-turn 摘要用量由 `compact()` 汇总。
+
 ### 其他细节
 
 - `event.signal` 已中断时不再发请求。
@@ -177,9 +184,9 @@ append 失败（任何原因）和 `-nc` 都进入 native。native 不再交回 
 
 ### 原生摘要的模型与档位
 
-native 是全价无缓存请求，指向便宜模型能省掉这一次。文件顶部两个常量 `NATIVE_SUMMARY_MODEL` 与 `NATIVE_SUMMARY_EFFORT` 控制它，都留空则沿用当前会话。
+native 使用 `cacheRetention: "none"`，不依赖 append 前缀命中，指向便宜模型能降低这次请求的成本。文件顶部两个常量 `NATIVE_SUMMARY_MODEL` 与 `NATIVE_SUMMARY_EFFORT` 当前分别为 `openai-codex/gpt-6-luna` 和 `high`，都留空则沿用当前会话。
 
-- 在 `session_start` 时匹配并缓存一次，配错当场报错，而不是等第一次压缩才发现；报错后退回当前模型与当前档位，压缩不受影响。
+- 在 `session_start` 时匹配并缓存一次，配错当场报错；模型未匹配时使用当前模型，档位独立校验，无效时使用当前档位。
 - 常量只是默认值，`--model` / `--effort` 是显式指令，优先于配置。
 - 未配置模型时不缓存会话开始时的模型，否则 `/model` 切换后会钉在旧模型上。
 - 档位在调用点按最终模型再校验一次，不支持则丢弃。
@@ -196,15 +203,16 @@ pi 的 `clampThinkingLevel` 会把未知档位静默降为 `off`，等于悄悄�
 写进提示词的要点：
 
 - 顺序：先硬性要求立刻停止当前工作、不调用工具，再给保留边界，最后才是输出格式与篇幅。格式放最后，因为模型必须严格照做，离生成位置越近越可靠。
-- 保留边界不能靠位置：模型数不准消息条数，更数不准 token。做法是从保留区第一条消息摘一段逐字原文当锚点（切点永远不落在工具结果上，所以那条消息一定有文本或可用工具名）。锚点要在整个上下文里唯一，不唯一就加长或续拼下一行，仍不唯一则声明"全部内容都要压缩"。
+- 保留边界不能靠位置：模型数不准消息条数，更数不准 token。做法是从保留区第一条消息摘一段逐字原文当锚点（切点永远不落在工具结果上，所以那条消息一定有文本或可用工具名）。锚点要在整个上下文里唯一，不唯一就加长或续拼下一行，仍不唯一则声明“全部内容都要压缩”。
+- 已知限制：锚点首条消息取自原始 `branchEntries`，唯一性检查使用 `buildSessionProjection()` 后的消息。`context_edit` 替换该消息时，原文可能已不在投影中，锚点会失配并退回“全部内容都要压缩”的提示；实际保留区仍由 `firstKeptEntryId` 决定，可能造成重复摘要。Pi 1.5.0 适配未修复此问题，兼容性测试记录的是现有行为。
 - `## Goal` 起的小节标题固定，后处理靠它截断前言和代码围栏，接受 `#`~`###` 与 `**Goal**` 变体，避免模型换个标题层级就降级重付。
 - 提示词里的篇幅目标（8k，不超过 12k）只让输出变短，不降低输入成本：保留区仍在请求里，模型仍会读。
 
-实测摘要输出 2,920 / 5,939 / 8,889 / 9,943 / 9,749 token，与 `tokensBefore` 无关（365k 那次写了 9.9k，592k 那次只写 5.9k），所以否定了"按被丢弃量取百分比"的预算公式。
+实测摘要输出 2,920 / 5,939 / 8,889 / 9,943 / 9,749 token，与 `tokensBefore` 无关（365k 那次写了 9.9k，592k 那次只写 5.9k），所以否定了“按被丢弃量取百分比”的预算公式。
 
-append 请求的输出上限固定为 `min(32768, model.maxTokens)`。不设的话适配器退回模型上限（deepseek 384k、claude 128k），加上接近窗口的输入会超窗。32768 与余量下限相等，保证通过余量检查就写得完。
+append 请求的输出上限固定为 `min(32768, model.maxTokens)`。未设置时适配器退回模型上限（deepseek 384k、claude 128k），加上接近窗口的输入会超窗。32768 与余量下限相等，保证通过余量检查即可完整输出。
 
-`### Direction` 小节不能当作"用了我们的提示词"的判据：上下文里已有带该小节的旧摘要时，原生摘要也会模仿格式。可靠判据是请求总量是否约等于上下文总量。
+`### Direction` 小节不能当作“用了我们的提示词”的判据：上下文里已有带该小节的旧摘要时，原生摘要也会模仿格式。可靠判据是请求总量是否约等于上下文总量。
 
 ---
 
@@ -232,11 +240,11 @@ pi 默认 16384。阈值触发点的余量是 `reserveTokens − 4096`，只有 
 代价：
 
 - 阈值触发点提前约 49k token，1M 窗口下可用上下文少 6.5%。
-- 压缩更频繁；append 未命中时 1.0C 高于 native 的约 0.5C。TTL 硬门控用来限制"闲置过久缓存必然已过期"的那部分风险。
+- 压缩更频繁；append 未命中时 1.0C 高于 native 的约 0.5C。TTL 硬门控用来限制“闲置过久缓存必然已过期”的那部分风险。
 
 收益：每次自动压缩从约 0.4–0.58C 降到约 0.1C。
 
-本地模型按窗口取值：131k 窗口取 36864，刚好等于 32768 + 4096，是 append 能通过余量检查的最小值。更小的保留区会让该模型的自动压缩一律走 native。保留区按窗口分级，不按 provider 分；早先给本地模型统一压回 16384 是"本地推理没有缓存费用"的判断，副作用是小窗口模型也套用大模型的比例。
+本地模型按窗口取值：131k 窗口取 36864，刚好等于 32768 + 4096，是 append 能通过余量检查的最小值。更小的保留区会让该模型的自动压缩一律走 native。保留区按窗口分级，不按 provider 分；早先给本地模型统一压回 16384 是“本地推理没有缓存费用”的判断，副作用是小窗口模型也套用大模型的比例。
 
 另有一个未经证实的推测：上下文接近窗口上限时模型注意力可能漂移，更早压缩可能对质量有帮助。没有对照实验，只作附带理由。
 
@@ -251,7 +259,7 @@ pi 默认 16384。阈值触发点的余量是 `reserveTokens − 4096`，只有 
 
 这个取值逻辑参考 pi 缓存预热的 TTL 函数（未导出），DeepSeek 门限在长间隔快照实测后改为 3d。实际效果：时间门控主要对 claude 和 gpt 起作用。
 
-放弃过 TTL 自动推断，原因如下：累积统计会被几千个秒级样本主导，TTL 恒被推到最高档；统计检验要求每区间至少 16 个样本，实际凑不够；样本单位错了（一次 run 内的秒级请求不是 TTL 证据，应按"空闲片段"取样）。现在是静态取值，观测只做告警。
+放弃过 TTL 自动推断，原因如下：累积统计会被几千个秒级样本主导，TTL 恒被推到最高档；统计检验要求每区间至少 16 个样本，实际凑不够；样本单位错了（一次 run 内的秒级请求不是 TTL 证据，应按“空闲片段”取样）。现在是静态取值，观测只做告警。
 
 ---
 
@@ -299,7 +307,7 @@ TTL 取值改过四次，每次都有教训：
 
 另一条旁证：10-25 12:02 的 native 压缩在 33 小时间隔后仍拿到 cacheRead 73,216，来自 DeepSeek 块级缓存对旧摘要文本的命中。它不能当作 append 命中的证据，但支持长保留。
 
-历史统计只能回答"观测到的最长干净命中"（deepseek 40.8m、claude 47.3m、gpt 中转 10.3m），不能回答"缓存寿命上界"。要进一步校准 claude 与 gpt 的取值，必须用落盘快照逐条比对 system/tools/messages 前导部分是否逐字一致，历史数据缺少当时的 payload，区分不了前缀破坏与缓存过期。
+历史统计只能给出观测到的最长干净命中（deepseek 40.8m、claude 47.3m、gpt 中转 10.3m），无法确定缓存寿命上界。要进一步校准 claude 与 gpt 的取值，必须用落盘快照逐条比对 system/tools/messages 前导部分是否逐字一致，历史数据缺少当时的 payload，区分不了前缀破坏与缓存过期。
 
 ### 10.4 append 路径实测（deepseek-flash）
 
@@ -325,13 +333,13 @@ TTL 取值改过四次，每次都有教训：
 | `-c --effort high` | 99.4% |
 | `-c --effort max` | 18.5% / 13.0% / 17.9% |
 
-low 与 high 互换不影响命中。`max` 三次都恰好停在 cacheRead 15,744，与"压缩后首次请求"的命中量相同，说明请求与最近缓存的前缀从很早就分歧。请求里唯一的差异是 `reasoning_effort` 取值。机制未查明：评审推断分歧点在 system/tools 与消息之间（system 约 30k 字符 + tools 约 35k 字符约等于 15.7k token，量级对得上），DeepSeek 可能对 `max` 走独立分支，都没有直接证据，不据此写额外逻辑。统计行命中率 ≤ 25% 会发 warning，这种情况在 TUI 上能看到。
+low 与 high 互换不影响命中。`max` 三次都恰好停在 cacheRead 15,744，与“压缩后首次请求”的命中量相同，说明请求与最近缓存的前缀从很早就分歧。请求里唯一的差异是 `reasoning_effort` 取值。机制未查明：评审推断分歧点在 system/tools 与消息之间（system 约 30k 字符 + tools 约 35k 字符约等于 15.7k token，量级对得上），DeepSeek 可能对 `max` 走独立分支，都没有直接证据，不据此写额外逻辑。统计行命中率 ≤ 25% 会发 warning，这种情况在 TUI 上能看到。
 
 ---
 
 ## 11. 失败模式
 
-按"是否会静默变坏"排序：
+按“是否会静默失效”排序：
 
 1. 前缀不命中但请求成功。几十万 token 按全价计费，没有任何报错，是主要风险。成因：Anthropic 断点移位、亲和请求头缺失、扩展加载顺序错误、`--effort max`。防线只有前缀比对和事后读 usage。
 2. `fromHook` 导致后续 pi 自己的压缩丢文件清单。质量静默下降。防线是条目里自行累积，且扩展不再把压缩交回 pi。
@@ -370,14 +378,26 @@ low 与 high 互换不影响命中。`max` 三次都恰好停在 cacheRead 15,74
 
 开关只从行首连续、未加引号的 token 里识别，遇到第一个非开关 token 或带引号的 token 就停止，剩下全部当摘要侧重。`-c` 强制 append（越过 TTL 猜测，不越过余量），`-nc` 强制 native。
 
-每次压缩向 `~/.pi/agent/compact-cache.log` 追加一行 JSON，记录模式、tag、tokens、间隔、TTL 门限、命中率、快照模型与档位等，超过 64KB 轮转为 `.log.old`。这是排查"为什么没走 append"的主要依据。压缩结束后统计行显示在编辑器上方的 widget 里，下一次 `agent_start` 清空。
+每次压缩向 `~/.pi/agent/compact-cache.log` 追加一行 JSON，记录模式、tag、tokens、间隔、TTL 门限、命中率、快照模型与档位等，超过 64KB 轮转为 `.log.old`。这是排查“为什么没走 append”的主要依据。压缩结束后统计行显示在编辑器上方的 widget 里，下一次 `agent_start` 清空。
 
-注意统计行的"模型"是实际执行摘要的模型，原生路径配置了 `NATIVE_SUMMARY_MODEL` 时与会话模型不同；日志里的 `snapModel` 才是会话模型。
+注意统计行的“模型”是实际执行摘要的模型，原生路径配置了 `NATIVE_SUMMARY_MODEL` 时与会话模型不同；日志里的 `snapModel` 才是会话模型。
 
-自检：
+内置自检（在 `extensions/` 目录运行）：
 
 ```
 env -u PI_CACHE_RETENTION COMPACT_CACHE_SELFTEST=1 bun compact-cache.ts
 ```
 
-自检依赖环境变量：`PI_CACHE_RETENTION=long` 时 "a TTL shorter than the margin still gets its full TTL" 一条会失败，因为 `ttlMs` 取的是 `promptCache.long` 而测试只声明了 `short`。这是测试对环境的依赖，不是实现错误；用 `env -u` 去掉该变量后全部通过（本次写文档时核对过）。
+自检依赖环境变量：`PI_CACHE_RETENTION=long` 时 "a TTL shorter than the margin still gets its full TTL" 一条会失败，因为 `ttlMs` 取的是 `promptCache.long` 而测试只声明了 `short`。这是测试对环境的依赖，不是实现错误；用 `env -u` 去掉该变量后全部通过。
+
+内置自检覆盖参数解析、消息前缀回放与归一化、输出上限、门控优先级、TTL、摘要标题、锚点和重试截断。
+
+兼容性测试 `tests/compact-cache-compat.test.mjs`（相对于 agent 目录，在 agent 目录运行）：
+
+```
+node --test tests/compact-cache-compat.test.mjs
+```
+
+该测试通过本机 Pi 扩展加载器加载源码，使用真实的 `prepareCompaction`、`buildSessionProjection` 和 `compact()`，以 mock registry 返回摘要，并禁止网络请求。覆盖 native 成功、截断重试、取消与失败、append 快照回放、overflow、split-turn 用量汇总、Codex 会话让出接管，以及不预解析鉴权、不传显式 `apiKey` / `headers` / `env` 的约束。测试也记录了 `context_edit` 导致原始保留区锚点失配的已知限制。
+
+该测试用于 Pi 1.5.0 的本地兼容性回归；真实 OAuth 刷新、provider 请求与缓存命中仍需单独验证。测试中的 Pi 安装路径固定为本机全局安装目录。

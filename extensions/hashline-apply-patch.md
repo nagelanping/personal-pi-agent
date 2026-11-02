@@ -20,7 +20,7 @@
 *** End Patch
 ```
 
-返回 diff 中的 `+anchor│`、`anchor│` 是当前 hashline 实例登记的可用锚点，可继续用于 `replace`、`insert` 等工具。`-anchor│` 属于旧内容，不能用作新编辑的边界。空文件也返回可用于填入内容的锚点。超长行和过大的 diff 会显示省略提示，不会伪称已经展示完整正文。
+返回 diff 中的 `+anchor│`、`anchor│` 是当前 hashline 实例登记的可用锚点，可继续用于 `replace`、`insert` 等工具。`-anchor│` 属于旧内容，不能用作新编辑的边界。空文件也返回可用于填入内容的锚点。超长行和过大的 diff 会显示省略提示。
 
 ## Codex 兼容行为
 
@@ -40,6 +40,16 @@
 补丁先计算全部操作和路径状态，检查上下文、文件类型、文件/父目录冲突、大小和已知访问权限，再按顺序提交。涉及的 canonical 路径使用固定排序的文件 mutation queue，避免相互等待；进入队列后和实际写入前检查取消信号。
 
 **写入授权以外层 `apply_patch` 的 `tool_call` 为边界。** 该工具声明 `readOnlyHint: false`、`destructiveHint: true`，内部只通过 `ctx.executeTool("read", ...)` 获取和登记当前实例的锚点；写入和删除不再经过嵌套 `replace`。权限扩展若只拦截 `replace` 或 `write`，须把 `apply_patch` 纳入规则，检查其补丁内的全部源路径和目标路径。不能将允许 `read` 当作允许写入。
+
+使用 `pi-permission-system` 时，若希望每次补丁都询问，可在 `~/.pi/agent/extensions/pi-permission-system/config.json` 的 `permission` 对象中加入：
+
+```json
+"apply_patch": "ask"
+```
+
+审批需要 `yoloMode: false`，可用 `/yolo off` 设置；`yoloMode: true` 会自动批准 `ask`。未配置 `apply_patch` 时，它匹配通用工具规则，例如 `"*": "allow"`，不会继承 `write`、`replace` 或 `insert` 的审批规则。工具的 `destructiveHint` 等声明是元数据，不会自行触发审批。
+
+上述配置只审批整次补丁。当前权限扩展没有解析补丁内的全部路径；若要按敏感路径控制 Add、Update、Delete 和 Move，还需支持补丁源路径和目标路径的检查。
 
 已有文件在提交前通过活动 `read` 登记原快照。返回 diff 的现存行也通过同一 reader 分页登记，不导入第二份内存 registry。撤销记录通过 hashline 当前的 SQLite 格式保存，保存失败则不执行对应的文件变更。
 
@@ -75,6 +85,8 @@
 
 无新增依赖，也不修改安装包。FREEFORM 工具 schema 复用已安装的 `pi-gpt-enhance`；补丁解析和匹配保存在本地，避免继承其 `@` 路径清洗。文件提交、diff 和 SQLite 格式复用 `pi-hashline-edit-pro` 的内部接口。包升级不会覆盖本地扩展，但内部接口变化仍可能影响兼容性。
 
+Pi 1.5.0 改用 `pi-schema` 校验工具参数；本扩展使用普通 JSON Schema，无需迁移。参数校验先于 `tool_call` 权限回调。`input: null` 会被转换为字符串 `"null"`，随后由补丁解析器拒绝，不写入文件。
+
 ```bash
 bun test ~/.pi/agent/tests/gpt-enhance-codex.test.ts
 bun test ~/.pi/agent/tests/hashline-apply-patch-integration.test.ts
@@ -84,6 +96,6 @@ bun test ~/.pi/agent/tests/hashline-apply-patch-integration.test.ts
 
 `gpt-enhance-codex.test.ts` 覆盖语法与匹配、覆盖及重复路径、BOM/混合换行、长行、精确正文、权限、链接、撤销持久化、文件队列取消，以及真实 Pi loader 的独立模块锚点协同。
 
-`hashline-apply-patch-integration.test.ts` 使用真实 Pi 会话的嵌套工具管线，验证已注册 `apply_patch` 的实际调用、返回锚点再次编辑、外层调用权限阻断、预检 read 阻断，以及排队取消后不写入。不请求模型服务；没有将测试通过解释为已经验证真实 GPT 服务端生成行为。
+`hashline-apply-patch-integration.test.ts` 使用真实 Pi 会话的嵌套工具管线，验证已注册 `apply_patch` 的实际调用、返回锚点再次编辑、参数校验先于权限回调、`null` 转换后解析失败且不写入、外层调用权限阻断、预检 read 阻断，以及排队取消后不写入。不请求模型服务，未验证真实 GPT 服务端生成行为。
 
 上游对照：[parser](https://github.com/openai/codex/blob/main/codex-rs/apply-patch/src/parser.rs)、[file_update](https://github.com/openai/codex/blob/main/codex-rs/apply-patch/src/file_update.rs)、[text_file](https://github.com/openai/codex/blob/main/codex-rs/apply-patch/src/text_file.rs)。
