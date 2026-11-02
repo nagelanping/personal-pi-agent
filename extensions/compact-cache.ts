@@ -1246,11 +1246,6 @@ async function nativeCompact(
     stat.thinking = String(attempt.effort ?? ctx.thinkingLevel ?? "");
     try {
       const pkg: typeof Pi = await import(PKG);
-      const auth = await ctx.modelRegistry.getApiKeyAndHeaders(attempt.model);
-      if (!auth.ok) throw new Error("no credentials");
-      const headers = Object.fromEntries(
-        Object.entries(auth.headers ?? {}).filter(([, v]) => v !== null),
-      ) as Record<string, string>;
       const preparation = attempt.trim
         ? {
             ...event.preparation,
@@ -1265,18 +1260,18 @@ async function nativeCompact(
       const r = await pkg.compact(
         preparation,
         attempt.model,
-        auth.apiKey,
-        headers,
+        undefined,
+        undefined,
         focus || undefined,
         event.signal,
         attempt.effort ?? ctx.thinkingLevel,
-        // Without an explicit streamFn compact() falls back to completeSimple and skips registry auth.
+        // Let registry resolve auth at request time; passing an OAuth token as apiKey changes its auth mode.
         (
           m: CompactStreamFnArg<0>,
           c: CompactStreamFnArg<1>,
           o: CompactStreamFnArg<2>,
         ) => ctx.modelRegistry.streamSimple(m, c, o),
-        auth.env,
+        undefined,
         undefined,
         undefined,
         ctx.sessionManager.getSessionId(),

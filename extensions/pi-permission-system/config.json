@@ -8,6 +8,7 @@
     "write": "ask",
     "replace": "ask",
     "insert": "ask",
+    "apply_patch": "ask",
     "path": {
       "*": "allow",
       "*.env": "ask",
