@@ -25,20 +25,35 @@ export default function (pi: ExtensionAPI): void {
       const segments = summarySegments(data);
       if (segments.length === 0) return undefined;
       const timestamp = localTime.format(new Date(entry.timestamp));
-      const quote = (text: string) => theme.style(text, { fg: "mdQuote", italic: true });
+      const quote = (text: string) =>
+        theme.style(text, { fg: "mdQuote", italic: true });
       // Render ANSI directly: Markdown strips the count colors.
-      const counts = segments.map(({ text, tone }) =>
-        text.split(/(\d+)/).map((part, index) => index === 1
-          ? theme.style(part, { fg: tone === "failed" ? "error" : "success", italic: true })
-          : quote(part)).join(""),
-      ).join(quote(", "));
+      const counts = segments
+        .map(({ text, tone }) =>
+          text
+            .split(/(\d+)/)
+            .map((part, index) =>
+              index === 1
+                ? theme.style(part, {
+                    fg: tone === "failed" ? "error" : "success",
+                    italic: true,
+                  })
+                : quote(part),
+            )
+            .join(""),
+        )
+        .join(quote(", "));
       const duration = formatDuration(data.durationMs);
-      const body = counts + quote(`${duration ? ` · ${duration}` : ""} · ${timestamp}`);
+      const body =
+        counts + quote(`${duration ? ` · ${duration}` : ""} · ${timestamp}`);
       return {
         invalidate() {},
         render(width: number): string[] {
           return wrapTextWithAnsi(body, Math.max(1, width - 4)).map((line) =>
-            truncateToWidth(` ${theme.fg("mdQuoteBorder", "│")} ${line}`, width),
+            truncateToWidth(
+              ` ${theme.fg("mdQuoteBorder", "│")} ${line}`,
+              width,
+            ),
           );
         },
       };

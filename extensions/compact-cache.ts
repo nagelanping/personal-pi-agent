@@ -34,10 +34,10 @@ import { join } from "node:path";
 /** 原生（-nc）摘要用哪个模型，写 `provider/id`，例如 `deepseek/deepseek-flash`。
  *  留空沿用当前模型，`/model` 切换后跟着变。原生摘要是全价无缓存请求，
  *  指向便宜模型能省掉这一次。 */
-const NATIVE_SUMMARY_MODEL = "openai-codex/gpt-6-luna";
+const NATIVE_SUMMARY_MODEL = "openai-codex/gpt-6.1-terra";
 /** 原生（-nc）摘要用哪个思考档位，写 `off` / `low` / `medium` / `high` / `xhigh` / `max`。
  *  留空沿用当前档位。 */
-const NATIVE_SUMMARY_EFFORT = "high";
+const NATIVE_SUMMARY_EFFORT = "medium";
 
 // ───────────────────────────── Prompt ─────────────────────────────
 // 改提示词只改这一处。fillPrompt 填充两个占位符：`{{retention_boundary}}` 为保留区边界块，
