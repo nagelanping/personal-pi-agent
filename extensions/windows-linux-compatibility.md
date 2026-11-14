@@ -23,6 +23,7 @@
 测试文件须分别运行，避免环境污染。
 
 **PowerShell 命令**：
+
 ```powershell
 $bun = "$HOME\.bun\bin\bun.exe"
 $tests = "$HOME\.pi\agent\tests"
@@ -35,6 +36,7 @@ foreach ($name in @('gpt-enhance-codex.test.ts', 'hashline-apply-patch-integrati
 **Linux**：使用 `bun` 分别运行。
 
 **内置自检**：
+
 ```bash
 PI_CACHE_RETENTION=short COMPACT_CACHE_SELFTEST=1 node ~/.pi/agent/extensions/compact-cache.ts
 YOLO_MODE_SELFTEST=1 node ~/.pi/agent/extensions/yolo.ts

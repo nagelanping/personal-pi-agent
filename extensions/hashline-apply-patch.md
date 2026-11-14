@@ -42,9 +42,11 @@
 **写入授权以外层 `apply_patch` 的 `tool_call` 为边界。** 工具声明 `readOnlyHint: false`、`destructiveHint: true`，不经过嵌套 `replace`。权限扩展若只拦截 `replace` 或 `write`，须将 `apply_patch` 纳入规则。
 
 若希望每次补丁均确认，在 `~/.pi/agent/extensions/pi-permission-system/config.json` 加入：
+
 ```json
 "apply_patch": "ask"
 ```
+
 需 `/yolo off` 审批。未显式配置时匹配通用工具规则。
 
 已有文件在提交前通过活动 `read` 登记快照。撤销记录通过 SQLite 保存。
