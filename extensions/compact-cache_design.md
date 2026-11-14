@@ -1,12 +1,12 @@
 # compact-cache 设计说明
 
-`compact-cache.ts` 替换 `/compact` 生成摘要的方式：把“停止工作、输出检查点”的指令追加到当前上下文末尾，作为最后一条 user 消息，复用上一次真实请求写入的 KV 前缀缓存。无法命中时退回 pi 原生压缩。切点、落盘、投影重建、TUI 与排队消息全部沿用 pi。
+`compact-cache.ts` 通过在上下文末尾追加“停止工作、输出检查点”指令，复用最近一次请求的 KV 前缀缓存以替换 `/compact` 的摘要生成逻辑。若无法命中，回退至 Pi 原生压缩。其余流程（切点、落盘、投影重建、TUI 及排队消息）沿用 Pi 原生逻辑。
 
-当前会话模型为 `openai-codex` 且 API 为 `openai-codex-responses` 时，本扩展跳过快照采集和压缩接管，保留 `pi-codex-native` 的结果。此例外不限制其他会话使用 Codex 作为 native 摘要模型。
+当会话模型为 `openai-codex` 且 API 为 `openai-codex-responses` 时，本扩展跳过快照采集与压缩接管，保留 `pi-codex-native` 的结果。
 
-本文记录设计意图、判断依据和实测发现。具体实现以代码为准，这里不重复。实测集中在 deepseek-flash；Anthropic、gpt 中转和本地模型的 append 路径只有历史请求统计，没有专门实测。
+本扩展的设计基于以下判断与实测。具体实现见源码。测试集中于 deepseek-flash；其他模型（Anthropic、gpt 中转、本地模型）仅有历史请求统计。
 
-旧版文档（含逐行源码引用、分阶段计划、逐轮改动记录）已移入回收站（`~/.local/share/Trash/files/compact-cache_design.old.md`），需要查阅原始证据时可从该处获取。
+旧文档已归档至 `~/.local/share/Trash/files/compact-cache_design.old.md`。
 
 ---
 
