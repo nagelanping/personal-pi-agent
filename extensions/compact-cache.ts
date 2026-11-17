@@ -117,9 +117,10 @@ function fillPrompt(anchor: string | undefined, focus: string): string {
 // ───────────────────────────── Constants ─────────────────────────────
 const PKG = "@earendil-works/pi-coding-agent";
 const MARK = "compact-cache:prefix-mismatch";
-const MIN_HEADROOM = 32_768;
+/** Below 16k, prefer the shorter native input over a likely truncated full-context summary. */
+const MIN_HEADROOM = 16_384;
 const SAFETY_TOKENS = 4096;
-/** Summary output budget. Equal to MIN_HEADROOM, so a gated append always has room to finish. */
+/** Summary-specific budget, independent of the model's general output limit. */
 const SUMMARY_OUTPUT_TOKENS = 32_768;
 const MAX_DIAGNOSTIC_CHARS = 60;
 const ANCHOR_WIDTHS = [100, 160, 240];
@@ -290,6 +291,7 @@ interface Stat {
   ratio?: number;
   model?: string;
   cw?: number;
+  outputBudget?: number;
   thinking?: string;
   snapModel?: string;
   snapThinking?: string;
@@ -301,6 +303,67 @@ interface Stat {
 }
 
 // ───────────────────────────── Pure helpers ─────────────────────────────
+/** Some adapters add thinking tokens to an explicit maxTokens. Bound the final wire cap too. */
+export function capSummaryPayload(value: unknown, budget: number): unknown {
+  if (!isRecord(value)) return value;
+  const payload = { ...value };
+  let ceiling = budget;
+  for (const key of OUTPUT_LIMIT_KEYS) {
+    if (typeof payload[key] === "number") {
+      ceiling = Math.min(ceiling, payload[key]);
+      payload[key] = Math.min(payload[key], budget);
+    }
+  }
+  if (
+    isRecord(payload.inferenceConfig) &&
+    typeof payload.inferenceConfig.maxTokens === "number"
+  ) {
+    ceiling = Math.min(ceiling, payload.inferenceConfig.maxTokens);
+    payload.inferenceConfig = {
+      ...payload.inferenceConfig,
+      maxTokens: ceiling,
+    };
+  }
+  const capThinking = (thinking: unknown): unknown => {
+    if (!isRecord(thinking) || typeof thinking.budget_tokens !== "number")
+      return thinking;
+    return {
+      ...thinking,
+      budget_tokens: Math.min(
+        thinking.budget_tokens,
+        Math.max(0, ceiling - 1024),
+      ),
+    };
+  };
+  if (payload.thinking !== undefined)
+    payload.thinking = capThinking(payload.thinking);
+  const extra = payload.additionalModelRequestFields;
+  if (isRecord(extra) && extra.thinking !== undefined) {
+    payload.additionalModelRequestFields = {
+      ...extra,
+      thinking: capThinking(extra.thinking),
+    };
+  }
+  return payload;
+}
+
+/** The appended prompt is input too; estimate it separately from the existing projection. */
+export function summaryBudget(
+  model: Pick<M, "contextWindow" | "maxTokens">,
+  inputTokens: number,
+): number {
+  return Math.max(
+    0,
+    Math.floor(
+      Math.min(
+        SUMMARY_OUTPUT_TOKENS,
+        model.maxTokens,
+        model.contextWindow - inputTokens - SAFETY_TOKENS,
+      ),
+    ),
+  );
+}
+
 const modelKey = (
   model: { provider: string; id: string } | undefined,
 ): string => (model ? `${model.provider}/${model.id}` : "");
@@ -659,7 +722,7 @@ export function decide(gate: Gate): Verdict {
 }
 
 function statDetail(stat: Stat): string {
-  return `${stat.tokens.toLocaleString()} tokens · ${stat.model} · thinking ${stat.thinking || "-"} · ${stat.entries} entries`;
+  return `${stat.tokens.toLocaleString()} tokens · ${stat.model} · thinking ${stat.thinking || "-"} · cap ${stat.outputBudget?.toLocaleString() ?? "-"} · ${stat.entries} entries`;
 }
 
 function statLine(stat: Stat): string {
@@ -759,7 +822,7 @@ export function pickAnchor(
 // ───────────────────────────── Extension ─────────────────────────────
 export default function compactCache(pi: ExtensionAPI): void {
   const snaps = new Map<string, Snapshot>();
-  /** Payloads seen but not yet confirmed by a 200: a rejected request never warmed any cache. */
+  /** Payloads seen but not yet confirmed by a 200: rejected requests are not usable replay candidates. */
   const candidates = new Map<string, Snapshot>();
   const dirty = new Set<string>();
   const pendingHeaders = new Map<string, Record<string, string | null>>();
@@ -902,8 +965,8 @@ export default function compactCache(pi: ExtensionAPI): void {
     candidates.set(key, snap);
   });
 
-  // Only a 200 proves the prefix is now cached; a 4xx/5xx snapshot would pass the TTL gate
-  // while the server holds nothing.
+  // A 200 makes this a replay candidate, not proof of a cache write or successful stream.
+  // Rejected requests must not replace the last accepted prefix.
   pi.on("after_provider_response", (e, ctx) => {
     if (e.status !== 200) return;
     const key = `${ctx.sessionManager.getSessionId()}|${modelKey(ctx.model)}`;
@@ -969,14 +1032,6 @@ export default function compactCache(pi: ExtensionAPI): void {
           );
           return { cancel: true };
         }
-        const allowed = supportedEfforts(finalModel);
-        if (!allowed.includes(level)) {
-          ctx.ui.notify(
-            `/compact: ${modelKey(finalModel)} does not support --effort ${level}. Valid for this model: ${allowed.join(", ")}.`,
-            "error",
-          );
-          return { cancel: true };
-        }
         effort = level;
       }
       // `--effort` wins; the configured default was validated against whatever model was
@@ -1012,10 +1067,20 @@ export default function compactCache(pi: ExtensionAPI): void {
         hasSnapshot: snap !== undefined,
         idleMs,
         limitMs: stat.limit,
-        headroom:
-          cur.contextWindow - event.preparation.tokensBefore - SAFETY_TOKENS,
+        headroom: summaryBudget(cur, event.preparation.tokensBefore),
       });
       why = verdict.why;
+      if (effort !== undefined) {
+        const summaryModel = why ? finalModel : cur;
+        const allowed = supportedEfforts(summaryModel);
+        if (!allowed.includes(effort)) {
+          ctx.ui.notify(
+            `/compact: ${modelKey(summaryModel)} does not support --effort ${effort}. Valid for this model: ${allowed.join(", ")}.`,
+            "error",
+          );
+          return { cancel: true };
+        }
+      }
       if (verdict.warn === "c-vs-model")
         ctx.ui.notify(
           "/compact: -c and --model name different models; using native compaction.",
@@ -1061,6 +1126,8 @@ export default function compactCache(pi: ExtensionAPI): void {
               mode: "append",
               tag: args.c ? "forced" : "auto",
               ratio: r.ratio,
+              outputBudget: r.outputTokens,
+              thinking: String(effort ?? ctx.thinkingLevel ?? ""),
             };
             return {
               compaction: {
@@ -1103,14 +1170,36 @@ async function appendSummary(
   focus: string,
   effort: string | undefined,
   takeParams: boolean,
-): Promise<string | { text: string; usage: CompactUsage; ratio: number }> {
+): Promise<
+  | string
+  | { text: string; usage: CompactUsage; ratio: number; outputTokens: number }
+> {
   const pkg: typeof Pi = await import(PKG);
   const proj = ctx.sessionManager.buildSessionProjection();
-  const entry = event.branchEntries.find(
-    (e) => e.id === event.preparation.firstKeptEntryId,
+  const retainedIndex = proj.entries.findIndex(
+    (e) => e.sourceEntry.id === event.preparation.firstKeptEntryId,
   );
-  const first = entry ? pkg.sessionEntryToContextMessages(entry)[0] : undefined;
-  const prompt = fillPrompt(pickAnchor(first, proj.messages), focus);
+  const firstRetained =
+    retainedIndex < 0
+      ? undefined
+      : proj.entries
+          .slice(retainedIndex)
+          .flatMap((entry) => entry.messages)
+          .find((message) => message.role !== "system");
+  const anchor = pickAnchor(firstRetained, proj.messages);
+  // A missing boundary must not turn retained content into summarized content.
+  if (firstRetained && !anchor) return "no-retention-anchor";
+  const prompt = fillPrompt(anchor, focus);
+  const outputTokens = summaryBudget(
+    model,
+    event.preparation.tokensBefore +
+      pkg.estimateTokens({
+        role: "user",
+        content: prompt,
+        timestamp: 0,
+      }),
+  );
+  if (outputTokens < MIN_HEADROOM) return "headroom";
   const messages = [
     ...pkg.convertToLlm(proj.messages),
     {
@@ -1133,10 +1222,10 @@ async function appendSummary(
         cacheRetention:
           process.env.PI_CACHE_RETENTION === "long" ? "long" : "short",
         reasoning: level,
-        // Never ask for more than the model can emit: a fixed cap fails outright on small models.
-        maxTokens: Math.min(SUMMARY_OUTPUT_TOKENS, model.maxTokens),
+        maxTokens: outputTokens,
         signal: event.signal,
-        onPayload: (p: unknown) => replay(snap.payload, p, takeParams),
+        onPayload: (p: unknown) =>
+          capSummaryPayload(replay(snap.payload, p, takeParams), outputTokens),
         transformHeaders: snap.headers
           ? () => ({ ...snap.headers })
           : undefined,
@@ -1161,7 +1250,12 @@ async function appendSummary(
   if (!text) return "no-goal-heading";
   const u = msg.usage;
   const total = u.input + u.cacheRead + u.cacheWrite;
-  return { text, usage: u, ratio: total ? u.cacheRead / total : 0 };
+  return {
+    text,
+    usage: u,
+    outputTokens,
+    ratio: total ? u.cacheRead / total : 0,
+  };
 }
 
 /**
@@ -1240,10 +1334,20 @@ async function nativeCompact(
   let failure = "";
   for (const attempt of attempts) {
     if (event.signal.aborted) break;
+    const requestedEffort = attempt.effort ?? ctx.thinkingLevel;
+    const effectiveEffort =
+      requestedEffort !== undefined &&
+      supportedEfforts(attempt.model).includes(requestedEffort)
+        ? requestedEffort
+        : "off";
     // The stat line reports what compact() is actually called with.
     stat.model = modelKey(attempt.model);
     stat.cw = attempt.model.contextWindow;
-    stat.thinking = String(attempt.effort ?? ctx.thinkingLevel ?? "");
+    stat.thinking = String(effectiveEffort);
+    stat.outputBudget = Math.min(
+      SUMMARY_OUTPUT_TOKENS,
+      attempt.model.maxTokens,
+    );
     try {
       const pkg: typeof Pi = await import(PKG);
       const preparation = attempt.trim
@@ -1264,13 +1368,26 @@ async function nativeCompact(
         undefined,
         focus || undefined,
         event.signal,
-        attempt.effort ?? ctx.thinkingLevel,
+        effectiveEffort,
         // Let registry resolve auth at request time; passing an OAuth token as apiKey changes its auth mode.
         (
           m: CompactStreamFnArg<0>,
           c: CompactStreamFnArg<1>,
           o: CompactStreamFnArg<2>,
-        ) => ctx.modelRegistry.streamSimple(m, c, o),
+        ) =>
+          ctx.modelRegistry.streamSimple(m, c, {
+            ...o,
+            maxTokens: Math.min(
+              SUMMARY_OUTPUT_TOKENS,
+              m.maxTokens,
+              o?.maxTokens ?? Infinity,
+            ),
+            onPayload: async (payload, model) =>
+              capSummaryPayload(
+                (await o?.onPayload?.(payload, model)) ?? payload,
+                Math.min(SUMMARY_OUTPUT_TOKENS, m.maxTokens),
+              ),
+          }),
         undefined,
         undefined,
         undefined,
@@ -1334,6 +1451,85 @@ if (process.env.COMPACT_CACHE_SELFTEST) {
     "unpaired quote is text",
   );
 
+  for (const contextWindow of [262_144, 524_288]) {
+    const model = { contextWindow, maxTokens: 131_072 };
+    const thresholdInput = contextWindow - 36_864 + 1;
+    assert(
+      summaryBudget(model, thresholdInput) === 32_767,
+      "strict threshold crossing still has an append budget",
+    );
+    assert(
+      summaryBudget(model, thresholdInput + 1000) === 31_767,
+      "additional input shrinks the output budget",
+    );
+    assert(
+      summaryBudget(model, contextWindow - 16_384) < MIN_HEADROOM,
+      "16k reserve prefers native compaction",
+    );
+    assert(
+      summaryBudget(model, contextWindow + 1) === 0,
+      "overflow budget is zero",
+    );
+    assert(
+      summaryBudget(model, 0) === SUMMARY_OUTPUT_TOKENS,
+      "128k model limit does not enlarge summary output",
+    );
+    assert(
+      summaryBudget({ ...model, maxTokens: 8192 }, 0) === 8192,
+      "small model output limit is respected",
+    );
+  }
+  {
+    const original = {
+      max_tokens: 49_152,
+      thinking: { type: "enabled", budget_tokens: 16_384 },
+    };
+    const capped = capSummaryPayload(original, 16_384);
+    assert(
+      eq(capped, {
+        max_tokens: 16_384,
+        thinking: { type: "enabled", budget_tokens: 15_360 },
+      }),
+      "wire budget includes thinking and leaves answer room",
+    );
+    assert(
+      original.max_tokens === 49_152 &&
+        original.thinking.budget_tokens === 16_384,
+      "wire cap does not mutate the snapshot",
+    );
+    assert(
+      eq(
+        capSummaryPayload(
+          {
+            inferenceConfig: { maxTokens: 40960, temperature: 0.2 },
+            additionalModelRequestFields: {
+              thinking: { type: "enabled", budget_tokens: 16384 },
+              other: true,
+            },
+          },
+          16384,
+        ),
+        {
+          inferenceConfig: { maxTokens: 16384, temperature: 0.2 },
+          additionalModelRequestFields: {
+            thinking: { type: "enabled", budget_tokens: 15360 },
+            other: true,
+          },
+        },
+      ),
+      "Bedrock nested output and thinking caps are bounded",
+    );
+    for (const key of OUTPUT_LIMIT_KEYS) {
+      assert(
+        eq(capSummaryPayload({ [key]: 131_072 }, 32_768), { [key]: 32_768 }),
+        "each provider output cap is bounded",
+      );
+      assert(
+        eq(capSummaryPayload({ [key]: 1000 }, 32_768), { [key]: 1000 }),
+        "smaller provider cap is preserved",
+      );
+    }
+  }
   assert(
     cleanSummary("Sure:\n```markdown\n## Goal\nx\n```") === "## Goal\nx",
     "preamble + fence",
@@ -1778,7 +1974,7 @@ if (process.env.COMPACT_CACHE_SELFTEST) {
     ttlMs({
       provider: "somewhere",
       id: "x",
-      promptCache: { short: 60 },
+      promptCache: { short: 60, long: 60 },
     } as M) ===
       60 * 1000,
     "a TTL shorter than the margin still gets its full TTL",
