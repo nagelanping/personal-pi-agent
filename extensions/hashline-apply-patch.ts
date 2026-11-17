@@ -61,6 +61,7 @@ type Snapshot = {
   path: string;
   logicalPath: string;
   info?: Stats;
+  mode?: number;
   raw: string | undefined;
 };
 type Change = {
@@ -131,7 +132,7 @@ async function snapshot(path: string, logicalPath = path): Promise<Snapshot> {
     }).decode(await readFile(path));
     if (raw.includes("\0"))
       throw new Error(`Binary files are not supported: ${logicalPath}`);
-    return { path, logicalPath, info, raw };
+    return { path, logicalPath, info, mode: info.mode & 0o7777, raw };
   } catch (error) {
     if (!missing(error)) throw error;
     return { path, logicalPath, raw: undefined };
@@ -285,7 +286,7 @@ function seek(
     }
     return undefined;
   };
-  return search(eof ? last : start) ?? (eof ? search(start) : undefined);
+  return search(eof ? Math.max(last, start) : start);
 }
 
 function applyChunks(raw: string, path: string, chunks: Chunk[]): string {
@@ -385,6 +386,7 @@ async function assertUnchanged(source: Snapshot): Promise<void> {
 export async function planPatch(input: string, cwd: string): Promise<Change[]> {
   const hunks = parsePatch(input);
   const states = new Map<string, Snapshot>();
+  const originalModes = new Map<string, number | undefined>();
   const directories = new Set<string>();
   const take = async (path: string): Promise<Snapshot> => {
     const logicalPath = resolve(cwd, path);
@@ -404,6 +406,8 @@ export async function planPatch(input: string, cwd: string): Promise<Change[]> {
         );
     }
     const state = previous ?? (await snapshot(target, logicalPath));
+    if (!originalModes.has(pathKey(target)))
+      originalModes.set(pathKey(target), state.mode);
     return { ...state, logicalPath };
   };
   const ensureParents = async (target: Snapshot) => {
@@ -463,16 +467,59 @@ export async function planPatch(input: string, cwd: string): Promise<Change[]> {
         `Move source and destination are the same file: ${hunk.path}`,
       );
     const target = destination ?? source;
+    // Newly created paths are owned by this process, with the mode inherited by Move.
+    if (
+      contents !== undefined &&
+      contents !== target.raw &&
+      target.raw !== undefined &&
+      target.info === undefined &&
+      target.mode !== undefined &&
+      (target.mode & 0o200) === 0 &&
+      (process.platform === "win32" || process.getuid?.() !== 0)
+    )
+      throw new Error(`Patch target will be read-only: ${target.logicalPath}`);
+    const mode =
+      target.raw !== undefined
+        ? target.mode
+        : (originalModes.get(pathKey(target.path)) ??
+          (destination ? source.mode : undefined) ??
+          0o666 & ~process.umask());
     if (contents !== undefined) await ensureParents(target);
     changes.push({ source, destination, contents, kind: hunk.kind });
     states.set(pathKey(source.path), {
       ...source,
       info: destination || contents === undefined ? undefined : source.info,
+      mode: destination || contents === undefined ? undefined : mode,
       raw: destination ? undefined : contents,
     });
     if (destination)
-      states.set(pathKey(destination.path), { ...destination, raw: contents });
+      states.set(pathKey(destination.path), {
+        ...destination,
+        mode,
+        raw: contents,
+      });
   }
+  // writeAtomic updates hardlinks in place. Path-only virtual states cannot model
+  // a write through one alias changing a second path mentioned by this patch.
+  const aliases = new Map<string, Set<string>>();
+  const writes = new Set<string>();
+  for (const change of changes) {
+    for (const source of [change.source, change.destination]) {
+      if (!source?.info) continue;
+      const identity = `${source.info.dev}:${source.info.ino}`;
+      const paths = aliases.get(identity) ?? new Set<string>();
+      paths.add(pathKey(source.path));
+      aliases.set(identity, paths);
+    }
+    const target = change.destination ?? change.source;
+    if (change.contents !== undefined && change.contents !== target.raw)
+      writes.add(pathKey(target.path));
+  }
+  for (const paths of aliases.values())
+    if (paths.size > 1 && [...paths].some((path) => writes.has(path)))
+      throw new Error(
+        `Patch writes through hardlink aliases: ${[...paths].join(", ")}. Patch one alias at a time.`,
+      );
   return changes;
 }
 
@@ -630,6 +677,7 @@ export async function executePatch(
       if (source && !originals.has(source.path))
         originals.set(source.path, source);
   const completed: string[] = [];
+  const uncertain: string[] = [];
   try {
     return await withQueues([...originals.keys()].sort(), async () => {
       signal?.throwIfAborted();
@@ -699,9 +747,11 @@ export async function executePatch(
           originalHashes.get(current.path) ?? [],
           contents,
         );
+        let attempted = false;
         try {
           await assertUnchanged(current);
           signal?.throwIfAborted();
+          attempted = true;
           if (contents === undefined) await unlink(current.path);
           else if (current.raw === undefined) {
             // Undo preserves an existing target's mode, so a recreated private path must stay private.
@@ -711,8 +761,34 @@ export async function executePatch(
             await createFile(current, contents, creationMode, signal);
           } else await writeAtomic(current.path, contents, current.info);
         } catch (error) {
-          if (previousUndo) upsertUndo(store, current.path, previousUndo);
-          else deleteUndo(store, current.path);
+          let failed: Snapshot | undefined = current;
+          if (attempted) {
+            try {
+              failed = await snapshot(current.path, current.logicalPath);
+            } catch (inspectionError) {
+              failed = undefined;
+              uncertain.push(
+                `${current.logicalPath}: ${inspectionError instanceof Error ? inspectionError.message : String(inspectionError)}`,
+              );
+            }
+          }
+          if (failed) {
+            if (failed.raw === current.raw) {
+              if (previousUndo) upsertUndo(store, current.path, previousUndo);
+              else deleteUndo(store, current.path);
+            } else {
+              saveUndo(
+                store,
+                original,
+                originalHashes.get(current.path) ?? [],
+                failed.raw,
+              );
+              if (original.raw === undefined) deleteUndo(store, current.path);
+              completed.push(
+                `${status} ${current.logicalPath} (changed despite error)`,
+              );
+            }
+          }
           throw error;
         }
         if (original.raw === undefined) deleteUndo(store, current.path);
@@ -811,12 +887,16 @@ export async function executePatch(
       };
     });
   } catch (error) {
+    const progress = completed.length
+      ? `Completed operations (not rolled back):\n${completed.join("\n")}`
+      : uncertain.length
+        ? "No operations confirmed completed."
+        : "No operations completed.";
+    const unknown = uncertain.length
+      ? `\nWrite outcome unknown; inspect these paths (the prepared undo was retained):\n${uncertain.join("\n")}`
+      : "";
     throw new Error(
-      `${error instanceof Error ? error.message : String(error)}\n${
-        completed.length
-          ? `Completed operations (not rolled back):\n${completed.join("\n")}`
-          : "No operations completed."
-      }\nInspect the affected paths before retrying. Existing files have per-path undo_last_change; new files must be removed separately.`,
+      `${error instanceof Error ? error.message : String(error)}\n${progress}${unknown}\nInspect the affected paths before retrying. Existing files have per-path undo_last_change; new files must be removed separately.`,
       { cause: error },
     );
   }
@@ -835,7 +915,7 @@ export default function hashlineApplyPatch(pi: ExtensionAPI): void {
     },
     reachesTools: () => ["read"],
     description:
-      "Apply a native Codex patch as FREEFORM text, not JSON. Use ordinary file contents, without hashline row prefixes. Supports Codex context matching, Add/Move overwrites and sequential changes to the same path. Returns live hashline diff anchors. Existing files support per-path undo_last_change; new file creation does not. All changes are preflighted, but execution is not a multi-file transaction. Delete/Move of a symlink source is refused.",
+      "Apply a native Codex patch as FREEFORM text, not JSON. Use ordinary file contents, without hashline row prefixes. Supports Codex context matching, Add/Move overwrites and sequential changes to the same path. Returns live hashline diff anchors. Existing files support per-path undo_last_change; new file creation does not. All changes are preflighted, but execution is not a multi-file transaction. Delete/Move of a symlink source and writes involving multiple hardlink aliases are refused.",
     promptGuidelines: [
       "Use apply_patch for normal code changes: submit native *** Begin Patch / *** End Patch syntax and plain text, not hashline row prefixes. Its returned +/space diff anchors can be used by hashline tools.",
     ],
