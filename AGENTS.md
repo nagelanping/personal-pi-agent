@@ -49,7 +49,8 @@
 
 ## 摩擦记录
 
-当未被授权或无法直接进行修改完善时，在 `PAPERCUTS.md` 中临时记录环境/工具/配置/文档等导致的工作摩擦，不要记录 agent 自身错误，或命令/行为固有的、不可改变的属性：
+当未被授权或无法直接进行修改完善时，在 `PAPERCUTS.md` 中临时记录环境/工具/配置/文档不符等导致的工作摩擦，不要记录 agent 自身错误，或命令/行为固有的、不可改变的属性：
 
-- `{cwd}/PAPERCUTS.md` 记录项目环境或工具配置错误、与仓库文档不符的行为。
-- `~/.pi/agent/PAPERCUTS.md` 记录 pi-coding-agent 或扩展的配置错误、系统环境或工具配置/描述错误，以及与 Pi 或扩展的文档不符的行为。
+- `{cwd}/PAPERCUTS.md` 项目级。
+- `~/PAPERCUTS.md` 系统级。
+- `~/.pi/agent/PAPERCUTS.md` pi-coding-agent 和扩展级。
