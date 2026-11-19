@@ -33,8 +33,8 @@ Use headings and lists only when they help scanning, without forcing arguments i
 ### Revision mode
 
 1. Freeze facts and protected wording before editing: numbers, citations, quotations, qualifiers, technical terms, code, links, and explicit user decisions.
-2. Identify the actual defects: vague wording, filler, repetition, unexplained jargon, canned transitions, template symmetry, unsupported confidence, or inconsistent terms.
-3. Rewrite only the defective passages. Keep already clear text. Keep heading levels, section and paragraph order, lists, tables, quotations, and code blocks unless a structural trigger or the user requires a change.
+2. Identify the actual defects: vague wording, filler, repetition, unexplained jargon, canned transitions, template symmetry, unsupported confidence, inconsistent terms, or mixed register (spoken phrasing and sentence rhythm inside formal text).
+3. Rewrite only the defective passages. Keep already clear text. Keep heading levels, section and paragraph order, lists, tables, quotations, and code blocks unless a structural trigger or the user requires a change. Mixed register is a defect of the whole sentence: rewrite the sentence in the document's register instead of swapping single words. When most sentences share the defect, rewrite the whole document.
 4. Compare the revision with the source. Restore any changed fact, scope, uncertainty, or attribution.
 5. Return the revised text directly unless the user asks for a change log.
 
@@ -147,7 +147,7 @@ Revise the recurring pattern across the passage, not only one phrase:
 
 #### Chinese plain-language screen
 
-中文场景默认使用偏书面的语言组织方式，要求句子成分完整、关系词齐全，使用日常通用词，并可保留英文专有词。论文、合同、规范、正式公告等专业场景，按需使用正式书面语。
+中文场景默认使用书面语，要求句子成分完整、关系词齐全、用词规范，并可保留英文专有词。论文、合同、规范、正式公告等专业场景使用正式书面语。一份文档只用一种语体；规范类文档使用条文语体（见 `references/chinese.md` 的“语体统一”）。
 表达时按中文习惯的主谓宾语序组织句子，不用无意义的假口语化和比喻；不堆砌修辞和句式，也不写大段礼貌用语和廉价关怀。
 不刻意重复已出现的内容和修饰性措辞，但同一概念的术语照常重复（见 Synonym cycling）。避免过度的防御性表述（见 Defensive negation and disclaimer boilerplate），结尾也不机械补充祝福、空泛总结或强行追问。
 
